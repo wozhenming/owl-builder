@@ -1,0 +1,118 @@
+import type { ImportResult, ProjectDetail, ProjectSummary } from '../types/api'
+
+/**
+ * 后端 API 客户端。
+ *
+ * 注意：后端是可选的 —— 当后端不可用时，前端可退化为
+ * localStorage 模式（由 useOntology hook 处理）。
+ * 本模块所有方法在后端不可用时抛出 ApiUnavailableError。
+ */
+
+export class ApiUnavailableError extends Error {
+  constructor(message = '无法连接后端服务，请确认后端已启动（见 README）') {
+    super(message)
+    this.name = 'ApiUnavailableError'
+  }
+}
+
+const BASE = '/api'
+
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  let res: Response
+  try {
+    res = await fetch(`${BASE}${path}`, {
+      headers: { 'Content-Type': 'application/json' },
+      ...init,
+    })
+  } catch {
+    throw new ApiUnavailableError()
+  }
+  if (res.status === 503 || res.status === 502) throw new ApiUnavailableError()
+  if (!res.ok) {
+    let detail = `请求失败（HTTP ${res.status}）`
+    try {
+      const body = (await res.json()) as { detail?: string }
+      if (body.detail) detail = body.detail
+    } catch {
+      /* 非 JSON 响应 */
+    }
+    throw new Error(detail)
+  }
+  if (res.status === 204) return undefined as T
+  return (await res.json()) as T
+}
+
+/** 探测后端是否可用 */
+export async function isBackendAvailable(): Promise<boolean> {
+  try {
+    const res = await fetch(`${BASE}/health`, { signal: AbortSignal.timeout(1500) })
+    return res.ok
+  } catch {
+    return false
+  }
+}
+
+export const apiClient = {
+  // ---- 项目 CRUD ----
+  listProjects: () => request<ProjectSummary[]>('/projects'),
+  createProject: (data: { name: string; description?: string; ontologyIri?: string }) =>
+    request<ProjectSummary>('/projects', { method: 'POST', body: JSON.stringify(data) }),
+  getProject: (id: string) => request<ProjectDetail>(`/projects/${id}`),
+  updateProject: (
+    id: string,
+    data: { name?: string; description?: string; ontology?: Record<string, unknown> },
+  ) => request<ProjectSummary>(`/projects/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteProject: (id: string) => request<void>(`/projects/${id}`, { method: 'DELETE' }),
+
+  // ---- 本体数据 ----
+  saveOntology: (projectId: string, ontology: Record<string, unknown>) =>
+    request<ProjectSummary>(`/projects/${projectId}/ontology`, {
+      method: 'PUT',
+      body: JSON.stringify(ontology),
+    }),
+
+  // ---- 文件导入导出 ----
+  /** 上传 .owl 文件，由后端解析并创建项目 */
+  importOwlFile: async (file: File): Promise<ImportResult> => {
+    const form = new FormData()
+    form.append('file', file)
+    let res: Response
+    try {
+      res = await fetch(`${BASE}/file/import`, { method: 'POST', body: form })
+    } catch {
+      throw new ApiUnavailableError()
+    }
+    if (!res.ok) {
+      let detail = `导入失败（HTTP ${res.status}）`
+      try {
+        const body = (await res.json()) as { detail?: string }
+        if (body.detail) detail = body.detail
+      } catch {
+        /* 忽略 */
+      }
+      throw new Error(detail)
+    }
+    return (await res.json()) as ImportResult
+  },
+
+  /** 导出项目为 .owl 文件（返回 Blob 供下载） */
+  exportOwlFile: async (projectId: string): Promise<Blob> => {
+    let res: Response
+    try {
+      res = await fetch(`${BASE}/file/export/${projectId}`)
+    } catch {
+      throw new ApiUnavailableError()
+    }
+    if (!res.ok) {
+      let detail = `导出失败（HTTP ${res.status}）`
+      try {
+        const body = (await res.json()) as { detail?: string }
+        if (body.detail) detail = body.detail
+      } catch {
+        /* 忽略 */
+      }
+      throw new Error(detail)
+    }
+    return await res.blob()
+  },
+}

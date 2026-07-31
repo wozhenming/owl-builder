@@ -1,0 +1,51 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  @apply bg-slate-50 text-slate-800 antialiased;
+}
+
+/* 自定义滚动条 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  @apply rounded-full bg-slate-300;
+}
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-slate-400;
+}
+
+/* ReactFlow 微调 */
+.react-flow__handle {
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.react-flow__node:hover .react-flow__handle,
+.react-flow__node.selected .react-flow__handle {
+  opacity: 1;
+}
+.react-flow__edge-path {
+  cursor: pointer;
+}
+.react-flow__controls {
+  @apply overflow-hidden rounded-lg border border-slate-200 shadow-sm;
+}
+.react-flow__controls-button {
+  @apply border-slate-200 bg-white text-slate-600 hover:bg-slate-50;
+}
+.react-flow__minimap {
+  @apply overflow-hidden rounded-lg border border-slate-200;
+}

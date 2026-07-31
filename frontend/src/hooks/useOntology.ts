@@ -79,7 +79,15 @@ export function useOntology(): ProjectHandle {
               createdAt: detail.createdAt,
               updatedAt: detail.updatedAt,
             })
-            next = (detail.ontology ?? null) as unknown as Ontology | null
+            const stored = (detail.ontology ?? null) as unknown as
+              | (Ontology & { layout?: Record<string, { x: number; y: number }> })
+              | null
+            if (stored) {
+              // 布局随本体 JSON 一起持久化（保存时写入），加载时剥离
+              const { layout: savedLayout, ...rest } = stored
+              next = rest
+              if (savedLayout) nextLayout = savedLayout
+            }
             found = true
           } catch (e) {
             if (e instanceof ApiUnavailableError) {
@@ -128,9 +136,14 @@ export function useOntology(): ProjectHandle {
     savingRef.current = true
     store.setBusy(true)
     try {
+      // 布局（节点坐标）随本体一起持久化，保证保存后布局不丢失
+      const payload = {
+        ...current,
+        layout: useOntologyStore.getState().layout,
+      } as unknown as Record<string, unknown>
       if (backendAvailable !== false) {
         try {
-          await apiClient.saveOntology(current.projectId, current as unknown as Record<string, unknown>)
+          await apiClient.saveOntology(current.projectId, payload)
           store.markSaved()
           setSummary((s) => (s ? { ...s, updatedAt: new Date().toISOString() } : s))
           useUiStore.getState().showToast('已保存到服务器', 'success')

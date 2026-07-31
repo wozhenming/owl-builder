@@ -229,9 +229,10 @@ export const useOntologyStore = create<OntologyState>((set, get) => ({
       dirty: true,
     })),
 
-  setLayout: (layout) => set({ layout }),
+  // 布局变化（自动排版/拖拽）也标记为未保存，保证保存按钮可用并持久化布局
+  setLayout: (layout) => set({ layout, dirty: true }),
   setNodePosition: (id, position) =>
-    set((state) => ({ layout: { ...state.layout, [id]: position } })),
+    set((state) => ({ layout: { ...state.layout, [id]: position }, dirty: true })),
 }))
 
 // ---------------------------------------------------------------------------

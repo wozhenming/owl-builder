@@ -3,26 +3,30 @@
 基于 Web 的可视化 **OWL 本体编辑器**，专为公路工程造价领域设计。
 让造价工程师、预算编制人员无需手写 XML，即可通过图形化界面创建、编辑和查看 OWL 本体。
 
-![Tech](https://img.shields.io/badge/前端-React%20%2B%20TypeScript%20%2B%20Tailwind-blue)
-![Tech](https://img.shields.io/badge/后端-FastAPI%20%2B%20SQLite-green)
+![Tech](<https://img.shields.io/badge/前端-React%20%2B%20TypeScript%20%2B%20Tailwind-blue>)
+![Tech](<https://img.shields.io/badge/后端-FastAPI%20%2B%20SQLite-green>)
 
 ## ✨ 核心功能
 
-| 功能 | 说明 |
-| --- | --- |
+| 功能            | 说明                                                                                |
+| --------------- | ----------------------------------------------------------------------------------- |
 | 🕸️ 图形化建模 | 节点-关系图展示类（Class）、属性（Property）与继承/关联关系，支持缩放、平移、小地图 |
-| ✏️ 可视化编辑 | 拖拽添加节点、节点间连线建立关系（自动预填 domain/range）、右侧面板编辑详情 |
-| 📦 OWL 导入导出 | 加载现有 `.owl` 文件（支持 CURIE 前缀/中文编码），导出标准 OWL RDF/XML |
-| 🇨🇳 中文友好 | 界面、类名、属性名、注释（rdfs:label / rdfs:comment）全部支持中文 |
-| 📁 多项目管理 | 创建多个本体项目，分别保存管理；后端不可用时自动降级为浏览器本地存储 |
-| ↩️ 撤销重做 | Ctrl+Z / Ctrl+Y 全量操作可撤销 |
-| 👀 源码预览 | 实时查看生成的 OWL XML 并一键复制/下载 |
+| ✏️ 可视化编辑 | 拖拽添加节点、节点间连线建立关系（自动预填 domain/range）、右侧面板编辑详情         |
+| 📦 OWL 导入导出 | 加载现有`.owl` 文件（支持 CURIE 前缀/中文编码），导出标准 OWL RDF/XML             |
+| 🇨🇳 中文友好   | 界面、类名、属性名、注释（rdfs:label / rdfs:comment）全部支持中文                   |
+| 📁 多项目管理   | 创建多个本体项目，分别保存管理；后端不可用时自动降级为浏览器本地存储                |
+| ↩️ 撤销重做   | Ctrl+Z / Ctrl+Y 全量操作可撤销                                                      |
+| 👀 源码预览     | 实时查看生成的 OWL XML 并一键复制/下载                                              |
 
 ## 🚀 快速开始
 
 ### 方式一：本地开发（推荐）
 
 需要 Node.js ≥ 18 与 Python ≥ 3.10。
+
+**Windows 用户：双击 [start-dev.bat](start-dev.bat) 一键启动**（自动创建虚拟环境、安装依赖、启动前后端）。
+
+手动启动：
 
 ```bash
 # 1. 启动后端（端口 8000）
@@ -33,7 +37,7 @@ python -m venv .venv
 .venv/Scripts/python -m uvicorn app.main:app --port 8000 --reload
 
 # 2. 启动前端（端口 5173，自动代理 /api 到后端）
-cd ../frontend
+cd ../frontend        # 注意：必须在 frontend 目录下执行，否则代理配置不生效
 npm install
 npm run dev
 ```
@@ -66,11 +70,11 @@ docker compose up --build
 
 ### 快捷键
 
-| 按键 | 功能 |
-| --- | --- |
-| `Ctrl+Z` / `Ctrl+Shift+Z` / `Ctrl+Y` | 撤销 / 重做 |
-| `Delete` / `Backspace` | 删除选中的类或关系边 |
-| `Esc` | 关闭对话框 / 取消选中 |
+| 按键                                       | 功能                  |
+| ------------------------------------------ | --------------------- |
+| `Ctrl+Z` / `Ctrl+Shift+Z` / `Ctrl+Y` | 撤销 / 重做           |
+| `Delete` / `Backspace`                 | 删除选中的类或关系边  |
+| `Esc`                                    | 关闭对话框 / 取消选中 |
 
 ## 🏗️ 项目结构
 
@@ -109,17 +113,17 @@ cost-ontology-editor/
 
 ## 🔌 API 概览
 
-| 方法 | 路径 | 说明 |
-| --- | --- | --- |
-| GET | `/api/health` | 健康检查 |
-| GET | `/api/projects` | 项目列表 |
-| POST | `/api/projects` | 创建项目 |
-| GET | `/api/projects/{id}` | 项目详情（含本体 JSON） |
-| PUT | `/api/projects/{id}` | 更新项目信息 |
-| PUT | `/api/projects/{id}/ontology` | 保存本体数据 |
-| DELETE | `/api/projects/{id}` | 删除项目 |
-| POST | `/api/file/import` | 上传 `.owl` 解析并创建项目 |
-| GET | `/api/file/export/{id}` | 导出项目为 `.owl` 下载 |
+| 方法   | 路径                            | 说明                        |
+| ------ | ------------------------------- | --------------------------- |
+| GET    | `/api/health`                 | 健康检查                    |
+| GET    | `/api/projects`               | 项目列表                    |
+| POST   | `/api/projects`               | 创建项目                    |
+| GET    | `/api/projects/{id}`          | 项目详情（含本体 JSON）     |
+| PUT    | `/api/projects/{id}`          | 更新项目信息                |
+| PUT    | `/api/projects/{id}/ontology` | 保存本体数据                |
+| DELETE | `/api/projects/{id}`          | 删除项目                    |
+| POST   | `/api/file/import`            | 上传`.owl` 解析并创建项目 |
+| GET    | `/api/file/export/{id}`       | 导出项目为`.owl` 下载     |
 
 接口文档（Swagger UI）：http://localhost:8000/docs
 

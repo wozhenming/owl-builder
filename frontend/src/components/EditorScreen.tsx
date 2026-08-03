@@ -3,6 +3,7 @@ import { AlertCircle, Loader2 } from 'lucide-react'
 import Toolbar from './Toolbar'
 import GraphView from './GraphView'
 import SidePanel from './SidePanel'
+import AiAssistantPanel from './AiAssistantPanel'
 import UnsavedDialog from './Dialogs/UnsavedDialog'
 import { useOntology, useOntologyData } from '../hooks/useOntology'
 import { useHistoryShortcuts } from '../hooks/useHistory'
@@ -95,19 +96,23 @@ export default function EditorScreen({ projectId, onBack }: EditorScreenProps) {
         </div>
       )}
 
-      <div className="relative flex flex-1 overflow-hidden">
-        {(!loaded || busy) && (
-          <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/60 backdrop-blur-[2px]">
-            <div className="flex items-center gap-2 text-sm text-slate-500">
-              <Loader2 className="animate-spin" size={18} />
-              {busy ? '正在保存…' : '正在加载项目…'}
+      <div className="relative flex flex-1 flex-col overflow-hidden">
+        <div className="relative flex min-h-0 flex-1">
+          {(!loaded || busy) && (
+            <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/60 backdrop-blur-[2px]">
+              <div className="flex items-center gap-2 text-sm text-slate-500">
+                <Loader2 className="animate-spin" size={18} />
+                {busy ? '正在保存…' : '正在加载项目…'}
+              </div>
             </div>
+          )}
+          <div className="flex-1">
+            <GraphView />
           </div>
-        )}
-        <div className="flex-1">
-          <GraphView />
+          <SidePanel />
         </div>
-        <SidePanel />
+        {/* 底部 AI 助手 */}
+        <AiAssistantPanel projectId={projectId} />
       </div>
 
       {/* 未保存退出确认 */}

@@ -264,3 +264,50 @@ export function useOntologyData() {
     })),
   )
 }
+
+/**
+ * 重新加载项目数据（模块级，供 AI 助手等外部模块在数据被修改后刷新画布）。
+ * 优先后端，其次本地。
+ */
+export async function reloadProjectData(projectId: string): Promise<void> {
+  const store = useOntologyStore.getState()
+  store.setBusy(true)
+  try {
+    let next: Ontology | null = null
+    let nextLayout: Record<string, { x: number; y: number }> = {}
+    const backendOk = await isBackendAvailable()
+    if (backendOk) {
+      try {
+        const detail = await apiClient.getProject(projectId)
+        const stored = (detail.ontology ?? null) as unknown as
+          | (Ontology & { layout?: Record<string, { x: number; y: number }> })
+          | null
+        if (stored) {
+          const { layout: savedLayout, ...rest } = stored
+          next = rest
+          if (savedLayout) nextLayout = savedLayout
+        }
+      } catch {
+        /* 后端读取失败，走本地 */
+      }
+    }
+    if (!next) {
+      const local = localOntology.load(projectId)
+      if (local) {
+        next = local.ontology
+        nextLayout = local.layout
+      } else {
+        next = createEmptyOntology('未命名本体')
+      }
+    }
+    suppressHistoryPush(() => {
+      store.setOntology(next ?? createEmptyOntology(), nextLayout)
+    })
+    useHistoryStore.getState().reset()
+    store.setError(null)
+  } catch (e) {
+    store.setError(e instanceof Error ? e.message : String(e))
+  } finally {
+    store.setBusy(false)
+  }
+}

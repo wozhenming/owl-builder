@@ -170,6 +170,10 @@ OWL 生成支持：`owl:Class`、`rdfs:subClassOf`、`rdfs:label`（中文）、
 
 **提供的 14 个工具：** `list_projects`、`create_project`、`delete_project`、`get_ontology`、`add_class`、`update_class`、`delete_class`、`add_relation`、`delete_relation`、`add_datatype`、`list_templates`、`create_project_from_template`、`export_owl`、`import_owl`
 
+## 🤖 AI 助手（大模型编辑本体）
+
+登录后可在首页右上角 **「AI 设置」** 配置大模型（OpenAI / DeepSeek / 通义千问 / Kimi / 自定义 OpenAI 兼容接口），然后在项目编辑页底部展开 **「AI 本体助手」**，用自然语言编辑本体（添加类、建立关系、导入导出等），操作通过本服务的 MCP 工具执行并绑定当前账号权限，完成后画布自动刷新。
+
 ## 📝 说明
 
 - **登录**：首页可注册/登录账号，项目与文件夹按用户隔离（公共数据 + 自己的数据，退出登录后看不到他人的私有项目）；不登录也可匿名使用（仅可见公共数据）。密码经 pbkdf2 加盐哈希存储，第一个注册的用户接管历史数据并成为管理员

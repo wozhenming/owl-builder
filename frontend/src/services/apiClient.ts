@@ -155,6 +155,20 @@ export const apiClient = {
     })
   },
   adminDeleteTemplate: (id: string) => request<void>(`/admin/templates/${id}`, { method: 'DELETE' }),
+
+  // ---- AI 助手 ----
+  getAiSettings: () =>
+    request<{ configured: boolean; provider: string; baseUrl: string; model: string; hasApiKey: boolean }>('/ai/settings'),
+  saveAiSettings: (data: { provider: string; baseUrl: string; apiKey: string; model: string }) =>
+    request<{ configured: boolean; message: string }>('/ai/settings', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  aiChat: (projectId: string, messages: Array<{ role: string; content: string }>) =>
+    request<{ reply?: string; error?: string; operations: Array<{ tool: string; result: string }> }>('/ai/chat', {
+      method: 'POST',
+      body: JSON.stringify({ projectId, messages }),
+    }),
   // ---- MCP 令牌管理 ----
   adminListMcpTokens: () => request<McpTokenAdmin[]>('/admin/mcp-tokens'),
   adminCreateMcpToken: (userId: string) =>

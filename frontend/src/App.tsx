@@ -9,11 +9,13 @@ import Toast from './components/common/Toast'
 import ErrorBoundary from './components/common/ErrorBoundary'
 import DocsDialog from './components/Docs/DocsDialog'
 import AuthDialog from './components/AuthDialog'
+import AiSettingsDialog from './components/AiSettingsDialog'
 import AdminDialog from './components/AdminDialog'
 import { useAuthStore } from './store/authStore'
 
 export default function App() {
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(null)
+  const [aiSettingsOpen, setAiSettingsOpen] = useState(false)
   const bootstrap = useAuthStore((s) => s.bootstrap)
 
   // 启动时恢复登录会话
@@ -38,6 +40,7 @@ export default function App() {
       <ConfirmDialog />
       <DocsDialog />
       <AuthDialog />
+      <AiSettingsDialog open={aiSettingsOpen} onClose={() => setAiSettingsOpen(false)} />
       <AdminDialog />
       <Toast />
     </>

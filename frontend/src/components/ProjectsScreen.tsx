@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   BookOpen,
+  Bot,
   Boxes,
   Cloud,
   CloudOff,
@@ -22,6 +23,7 @@ import {
   UserRound,
 } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
+import AiSettingsDialog from './AiSettingsDialog'
 import Button from './common/Button'
 import Input, { Textarea } from './common/Input'
 import Modal from './common/Modal'
@@ -53,6 +55,7 @@ export default function ProjectsScreen({ onOpenProject }: ProjectsScreenProps) {
   const logout = useAuthStore((s) => s.logout)
   const openAuthDialog = useAuthStore((s) => s.openAuthDialog)
   const openAdminDialog = useAuthStore((s) => s.openAdminDialog)
+  const [aiSettingsOpen, setAiSettingsOpen] = useState(false)
 
   const [projects, setProjects] = useState<ProjectSummary[]>([])
   const [folders, setFolders] = useState<FolderSummary[]>([])
@@ -373,6 +376,17 @@ export default function ProjectsScreen({ onOpenProject }: ProjectsScreenProps) {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            {authUser && (
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={<Bot size={14} />}
+                onClick={() => setAiSettingsOpen(true)}
+                title="配置 AI 助手使用的大模型"
+              >
+                AI 设置
+              </Button>
+            )}
             {authUser?.isAdmin && (
               <Button variant="secondary" size="sm" icon={<ShieldCheck size={14} />} onClick={openAdminDialog}>
                 管理后台
@@ -615,6 +629,9 @@ export default function ProjectsScreen({ onOpenProject }: ProjectsScreenProps) {
       <footer className="border-t border-slate-200 bg-white py-4 text-center text-xs text-slate-400">
         本体可视化编辑器 · 支持 OWL RDF/XML 导入导出 · 多领域本体建模工具
       </footer>
+
+      {/* AI 配置对话框 */}
+      <AiSettingsDialog open={aiSettingsOpen} onClose={() => setAiSettingsOpen(false)} />
 
       {/* 示例模板选择对话框 */}
       <TemplateDialog

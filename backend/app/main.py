@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
 from .api import admin as admin_api
+from .api import ai as ai_api
 from .api import auth as auth_api
 from .api import file as file_api
 from .api import folder as folder_api
@@ -74,6 +75,7 @@ app.include_router(folder_api.router)
 app.include_router(auth_api.router)
 app.include_router(template_api.router)
 app.include_router(admin_api.router)
+app.include_router(ai_api.router)
 
 # MCP（Model Context Protocol）服务挂载：http://localhost:8000/mcp
 mcp_app = mcp_server.http_app(path="/")

@@ -28,6 +28,7 @@ export function useKeyboardShortcuts({ onSave }: ShortcutOptions) {
       if (isTyping(e.target)) return
       if (!(e.ctrlKey || e.metaKey)) return
       const key = e.key.toLowerCase()
+      const code = e.code // 物理按键位置（Digit1/2/3），不受 Shift 影响
       const ui = useUiStore.getState()
 
       switch (key) {
@@ -54,16 +55,21 @@ export function useKeyboardShortcuts({ onSave }: ShortcutOptions) {
           e.preventDefault()
           ui.requestLayout()
           break
-        case '1':
-        case '2':
-        case '3':
-          if (e.shiftKey) {
-            e.preventDefault()
-            ui.setPanelTab(key === '1' ? 'detail' : key === '2' ? 'add' : 'code')
-          }
-          break
         default:
           break
+      }
+
+      // 面板切换：用 e.code 匹配数字键。
+      // 注意不能用 e.key——真实键盘事件中 Shift+数字 的 key 是符号（'!'、'@'、'#'）。
+      if (e.shiftKey && (code === 'Digit1' || code === 'Numpad1')) {
+        e.preventDefault()
+        ui.setPanelTab('detail')
+      } else if (e.shiftKey && (code === 'Digit2' || code === 'Numpad2')) {
+        e.preventDefault()
+        ui.setPanelTab('add')
+      } else if (e.shiftKey && (code === 'Digit3' || code === 'Numpad3')) {
+        e.preventDefault()
+        ui.setPanelTab('code')
       }
     }
     window.addEventListener('keydown', onKeyDown)

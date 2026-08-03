@@ -1,5 +1,13 @@
 import { getStoredToken } from '../store/authStore'
-import type { FolderSummary, ImportResult, ProjectDetail, ProjectSummary } from '../types/api'
+import type {
+  FolderSummary,
+  ImportResult,
+  ProjectDetail,
+  ProjectSummary,
+  TemplateAdmin,
+  TemplateSummary,
+  UserAdmin,
+} from '../types/api'
 
 /**
  * 后端 API 客户端。
@@ -36,8 +44,10 @@ function authHeaders(): Record<string, string> {
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response
   try {
+    // FormData 由浏览器自动设置 multipart 头，不能手动指定 Content-Type
+    const isFormData = init?.body instanceof FormData
     res = await fetch(`${BASE}${path}`, {
-      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      headers: isFormData ? authHeaders() : { 'Content-Type': 'application/json', ...authHeaders() },
       ...init,
     })
   } catch {
@@ -96,6 +106,45 @@ export const apiClient = {
   renameFolder: (id: string, data: { name: string }) =>
     request<FolderSummary>(`/folders/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteFolder: (id: string) => request<void>(`/folders/${id}`, { method: 'DELETE' }),
+
+  // ---- 模板（普通用户可见） ----
+  listTemplates: () => request<TemplateSummary[]>('/templates'),
+
+  // ---- 管理后台（仅管理员） ----
+  adminListUsers: () => request<UserAdmin[]>('/admin/users'),
+  adminResetPassword: (userId: string, password: string) =>
+    request<{ message: string }>(`/admin/users/${userId}/password`, {
+      method: 'PUT',
+      body: JSON.stringify({ password }),
+    }),
+  adminDeleteUser: (userId: string) => request<void>(`/admin/users/${userId}`, { method: 'DELETE' }),
+  adminListTemplates: () => request<TemplateAdmin[]>('/admin/templates'),
+  adminSaveTemplate: (
+    id: string | null,
+    data: {
+      name: string
+      domain: string
+      description: string
+      icon: string
+      scope: 'public' | 'assigned'
+      assignedUserIds: string[]
+      file?: File | null
+    },
+  ) => {
+    const form = new FormData()
+    form.append('name', data.name)
+    form.append('domain', data.domain)
+    form.append('description', data.description)
+    form.append('icon', data.icon)
+    form.append('scope', data.scope)
+    form.append('assignedUserIds', JSON.stringify(data.assignedUserIds))
+    if (data.file) form.append('file', data.file)
+    return request<TemplateAdmin>(id ? `/admin/templates/${id}` : '/admin/templates', {
+      method: id ? 'PUT' : 'POST',
+      body: form,
+    })
+  },
+  adminDeleteTemplate: (id: string) => request<void>(`/admin/templates/${id}`, { method: 'DELETE' }),
 
   // ---- 本体数据 ----
   saveOntology: (projectId: string, ontology: Record<string, unknown>) =>

@@ -9,6 +9,7 @@ import Toast from './components/common/Toast'
 import ErrorBoundary from './components/common/ErrorBoundary'
 import DocsDialog from './components/Docs/DocsDialog'
 import AuthDialog from './components/AuthDialog'
+import AdminDialog from './components/AdminDialog'
 import { useAuthStore } from './store/authStore'
 
 export default function App() {
@@ -37,6 +38,7 @@ export default function App() {
       <ConfirmDialog />
       <DocsDialog />
       <AuthDialog />
+      <AdminDialog />
       <Toast />
     </>
   )

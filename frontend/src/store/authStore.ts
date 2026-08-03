@@ -14,6 +14,8 @@ interface AuthState {
   user: AuthUser | null
   /** 登录对话框 */
   authDialogOpen: boolean
+  /** 管理后台对话框 */
+  adminDialogOpen: boolean
   /** 认证请求进行中 */
   busy: boolean
 
@@ -24,6 +26,8 @@ interface AuthState {
   bootstrap: () => Promise<void>
   openAuthDialog: () => void
   closeAuthDialog: () => void
+  openAdminDialog: () => void
+  closeAdminDialog: () => void
   clearAuth: () => void
 }
 
@@ -67,6 +71,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   token: null,
   user: null,
   authDialogOpen: false,
+  adminDialogOpen: false,
   busy: false,
 
   login: async (username, password) => {
@@ -138,6 +143,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   openAuthDialog: () => set({ authDialogOpen: true }),
   closeAuthDialog: () => set({ authDialogOpen: false }),
+  openAdminDialog: () => set({ adminDialogOpen: true }),
+  closeAdminDialog: () => set({ adminDialogOpen: false }),
   clearAuth: () => {
     try {
       localStorage.removeItem(TOKEN_KEY)

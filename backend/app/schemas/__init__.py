@@ -7,6 +7,9 @@ from .ontology import (
     ProjectDetail,
     ProjectOut,
     ProjectUpdate,
+    TemplateAdminOut,
+    TemplateOut,
+    UserAdminOut,
 )
 
 __all__ = [
@@ -18,4 +21,7 @@ __all__ = [
     "ProjectDetail",
     "ProjectOut",
     "ProjectUpdate",
+    "TemplateAdminOut",
+    "TemplateOut",
+    "UserAdminOut",
 ]

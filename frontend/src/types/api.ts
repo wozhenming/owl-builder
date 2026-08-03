@@ -18,6 +18,33 @@ export interface FolderSummary {
   createdAt: string
 }
 
+/** 管理员视角的用户 */
+export interface UserAdmin {
+  id: string
+  username: string
+  isAdmin: boolean
+  projectCount: number
+  createdAt: string
+}
+
+/** 示例模板（含本体内容） */
+export interface TemplateSummary {
+  id: string
+  name: string
+  domain: string
+  description: string
+  icon: string
+  scope: 'public' | 'assigned'
+  /** 模板内容 { ontology, layout } */
+  data: { ontology: Record<string, unknown>; layout?: Record<string, unknown> | null }
+  createdAt: string
+}
+
+/** 管理员视角的模板 */
+export interface TemplateAdmin extends TemplateSummary {
+  assignedUserIds: string[]
+}
+
 /** 项目详情（含本体 JSON 数据） */
 export interface ProjectDetail extends ProjectSummary {
   ontology: Record<string, unknown>

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   BookOpen,
   Boxes,
@@ -15,6 +15,7 @@ import {
   LogIn,
   LogOut,
   Pencil,
+  ShieldCheck,
   Plus,
   Sparkles,
   Trash2,
@@ -27,14 +28,14 @@ import Modal from './common/Modal'
 import { apiClient, ApiUnavailableError, isBackendAvailable } from '../services/apiClient'
 import { localFolders, localOntology, localProjects } from '../services/storageService'
 import { parseOwlXml } from '../services/owlParser'
-import { type SampleTemplate } from '../data/sampleTemplates'
+import { SAMPLE_TEMPLATES } from '../data/sampleTemplates'
 import { useUiStore } from '../store/uiStore'
-import type { FolderSummary, ProjectSummary } from '../types/api'
+import type { FolderSummary, ProjectSummary, TemplateSummary } from '../types/api'
 import type { NodeLayoutMap } from '../types/ontology'
 import { formatRelativeTime } from '../utils/formatters'
 import { validateProjectForm } from '../utils/validators'
 import { HELP } from '../utils/helpTexts'
-import TemplateDialog from './Dialogs/TemplateDialog'
+import TemplateDialog, { type TemplateOption } from './Dialogs/TemplateDialog'
 
 interface ProjectsScreenProps {
   onOpenProject: (id: string) => void
@@ -51,6 +52,7 @@ export default function ProjectsScreen({ onOpenProject }: ProjectsScreenProps) {
   const authToken = useAuthStore((s) => s.token)
   const logout = useAuthStore((s) => s.logout)
   const openAuthDialog = useAuthStore((s) => s.openAuthDialog)
+  const openAdminDialog = useAuthStore((s) => s.openAdminDialog)
 
   const [projects, setProjects] = useState<ProjectSummary[]>([])
   const [folders, setFolders] = useState<FolderSummary[]>([])
@@ -68,6 +70,7 @@ export default function ProjectsScreen({ onOpenProject }: ProjectsScreenProps) {
   const [folderName, setFolderName] = useState('')
   // 移动项目对话框
   const [moveTarget, setMoveTarget] = useState<ProjectSummary | null>(null)
+  const [serverTemplates, setServerTemplates] = useState<TemplateSummary[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const refresh = async (useBackend: boolean) => {
@@ -101,6 +104,37 @@ export default function ProjectsScreen({ onOpenProject }: ProjectsScreenProps) {
     if (backendAvailable !== null) void refresh(backendAvailable)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authToken])
+
+  // 拉取当前用户可见的模板（管理员下发的 + 公共的）
+  useEffect(() => {
+    if (backendAvailable === true) {
+      apiClient
+        .listTemplates()
+        .then(setServerTemplates)
+        .catch(() => setServerTemplates([]))
+    }
+  }, [backendAvailable, authToken])
+
+  /** 模板选择项：后端下发 + 内置 */
+  const templateOptions = useMemo<TemplateOption[]>(() => {
+    const server: TemplateOption[] = serverTemplates.map((t) => ({
+      id: t.id,
+      name: t.name,
+      domain: t.domain,
+      description: t.description,
+      icon: t.icon,
+      source: 'server',
+    }))
+    const builtin: TemplateOption[] = SAMPLE_TEMPLATES.map((t) => ({
+      id: t.id,
+      name: t.ontology.name,
+      domain: t.domain,
+      description: t.ontology.description,
+      icon: t.icon,
+      source: 'builtin',
+    }))
+    return [...server, ...builtin]
+  }, [serverTemplates])
 
   // ---- 项目操作 ----
   const createProject = async (folderId?: string | null) => {
@@ -236,26 +270,41 @@ export default function ProjectsScreen({ onOpenProject }: ProjectsScreenProps) {
   }
 
   // ---- 示例模板 ----
-  const useTemplate = async (template: SampleTemplate) => {
+  const useTemplate = async (option: TemplateOption) => {
     setTemplateOpen(false)
     setCreating(true)
     try {
+      let name: string
+      let domain: string
+      let ontology: unknown
+      let layout: Record<string, { x: number; y: number }> | undefined
+      if (option.source === 'server') {
+        const tpl = serverTemplates.find((t) => t.id === option.id)
+        if (!tpl) throw new Error('模板不存在或已删除')
+        name = tpl.name
+        domain = tpl.domain
+        ontology = tpl.data.ontology
+        layout = (tpl.data.layout as Record<string, { x: number; y: number }> | undefined) ?? undefined
+      } else {
+        const tpl = SAMPLE_TEMPLATES.find((t) => t.id === option.id)
+        if (!tpl) throw new Error('模板不存在')
+        name = tpl.ontology.name
+        domain = tpl.domain
+        ontology = tpl.ontology
+        layout = tpl.layout
+      }
       let project: ProjectSummary
       if (backendAvailable) {
-        project = await apiClient.createProject({
-          name: template.ontology.name,
-          description: template.ontology.description,
-          ontologyIri: template.ontology.ontologyIri,
-        })
+        project = await apiClient.createProject({ name, description: option.description, ontologyIri: 'http://example.org/tpl#' })
         await apiClient.saveOntology(
           project.id,
-          { ...template.ontology, projectId: project.id } as unknown as Record<string, unknown>,
+          { ...(ontology as Record<string, unknown>), projectId: project.id, layout } as Record<string, unknown>,
         )
       } else {
-        project = localProjects.create({ name: template.ontology.name, description: template.ontology.description })
-        localOntology.save(project.id, template.ontology, template.layout)
+        project = localProjects.create({ name, description: option.description })
+        localOntology.save(project.id, ontology as import('../types/ontology').Ontology, layout ?? {})
       }
-      showToast(`已从「${template.domain}」模板创建项目`, 'success')
+      showToast(`已从「${domain}」模板创建项目`, 'success')
       onOpenProject(project.id)
     } catch (e) {
       showToast(e instanceof Error ? e.message : '创建示例失败', 'error')
@@ -324,6 +373,11 @@ export default function ProjectsScreen({ onOpenProject }: ProjectsScreenProps) {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            {authUser?.isAdmin && (
+              <Button variant="secondary" size="sm" icon={<ShieldCheck size={14} />} onClick={openAdminDialog}>
+                管理后台
+              </Button>
+            )}
             {authUser ? (
               <span className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600">
                 <UserRound size={13} className="text-primary-600" />
@@ -563,7 +617,12 @@ export default function ProjectsScreen({ onOpenProject }: ProjectsScreenProps) {
       </footer>
 
       {/* 示例模板选择对话框 */}
-      <TemplateDialog open={templateOpen} onClose={() => setTemplateOpen(false)} onPick={(t) => void useTemplate(t)} />
+      <TemplateDialog
+        open={templateOpen}
+        onClose={() => setTemplateOpen(false)}
+        templates={templateOptions}
+        onPick={(t) => void useTemplate(t)}
+      />
 
       {/* 新建项目对话框 */}
       <Modal title="新建本体项目" open={createOpen} onClose={() => setCreateOpen(false)}>

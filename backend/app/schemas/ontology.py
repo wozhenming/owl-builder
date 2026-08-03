@@ -45,6 +45,33 @@ class FolderOut(BaseModel):
     createdAt: datetime
 
 
+# ---- 用户管理 ----
+
+class UserAdminOut(BaseModel):
+    id: str
+    username: str
+    isAdmin: bool
+    projectCount: int = 0
+    createdAt: datetime
+
+
+# ---- 模板 ----
+
+class TemplateOut(BaseModel):
+    id: str
+    name: str
+    domain: str
+    description: str
+    icon: str
+    scope: str
+    data: Dict[str, Any]
+    createdAt: datetime
+
+
+class TemplateAdminOut(TemplateOut):
+    assignedUserIds: list[str] = []
+
+
 class ProjectDetail(ProjectOut):
     ontology: Dict[str, Any]
 

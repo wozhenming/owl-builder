@@ -6,10 +6,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
+from .api import admin as admin_api
 from .api import auth as auth_api
 from .api import file as file_api
 from .api import folder as folder_api
 from .api import project as project_api
+from .api import template as template_api
 from .database import Base, engine
 
 
@@ -65,3 +67,5 @@ app.include_router(project_api.router)
 app.include_router(file_api.router)
 app.include_router(folder_api.router)
 app.include_router(auth_api.router)
+app.include_router(template_api.router)
+app.include_router(admin_api.router)

@@ -31,3 +31,6 @@ Thumbs.db
 
 # 目录迁移后的临时残留（关闭旧服务终端后即可删除该文件夹）
 cost-ontology-editor/
+
+# 本地测试工具（不提交）
+test-tools/

@@ -4,7 +4,7 @@ import type { ProjectSummary } from '../types/api'
 import type { Ontology } from '../types/ontology'
 import { apiClient, ApiUnavailableError, isBackendAvailable } from '../services/apiClient'
 import { localOntology, localProjects } from '../services/storageService'
-import { applySnapshot, useHistoryStore } from '../store/historyStore'
+import { applySnapshot, snapshotFrom, useHistoryStore } from '../store/historyStore'
 import { createEmptyOntology, suppressHistoryPush, useOntologyStore } from '../store/ontologyStore'
 import { useUiStore } from '../store/uiStore'
 
@@ -198,24 +198,32 @@ export function useOntology(): ProjectHandle {
     [backendAvailable],
   )
 
-  /** 撤销 / 重做 */
+  /** 撤销 / 重做（同时恢复节点内容与布局） */
   const undo = useCallback(() => {
-    const snap = useHistoryStore.getState().undo()
+    const history = useHistoryStore.getState()
+    const snap = history.undo()
     if (!snap) return
     const store = useOntologyStore.getState()
+    // 把当前状态记入 future，供重做使用
+    history.recordFuture(snapshotFrom(store.ontology, store.layout))
     suppressHistoryPush(() => {
       store.setOntology(applySnapshot(snap, store.ontology))
+      store.setLayout(snap.layout ?? {})
       store.markDirty()
     })
     useUiStore.getState().clearSelection()
   }, [])
 
   const redo = useCallback(() => {
-    const snap = useHistoryStore.getState().redo()
+    const history = useHistoryStore.getState()
+    const snap = history.redo()
     if (!snap) return
     const store = useOntologyStore.getState()
+    // 把当前状态记入 past，供再次撤销使用
+    history.recordPast(snapshotFrom(store.ontology, store.layout))
     suppressHistoryPush(() => {
       store.setOntology(applySnapshot(snap, store.ontology))
+      store.setLayout(snap.layout ?? {})
       store.markDirty()
     })
     useUiStore.getState().clearSelection()

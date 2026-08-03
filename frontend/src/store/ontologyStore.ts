@@ -240,7 +240,7 @@ export const useOntologyStore = create<OntologyState>((set, get) => ({
 // 撤销/重做时通过 suppressHistoryPush 跳过，避免污染历史。
 // ---------------------------------------------------------------------------
 
-import { snapshotFromOntology, useHistoryStore } from './historyStore'
+import { snapshotFrom, useHistoryStore } from './historyStore'
 
 let historySuppressed = false
 
@@ -254,9 +254,17 @@ export function suppressHistoryPush(fn: () => void) {
   }
 }
 
+// 本体内容变化 -> 压入历史（快照包含当时的布局）
 useOntologyStore.subscribe((state, prevState) => {
   if (state.ontology !== prevState.ontology && !historySuppressed) {
-    useHistoryStore.getState().push(snapshotFromOntology(prevState.ontology))
+    useHistoryStore.getState().push(snapshotFrom(prevState.ontology, prevState.layout))
+  }
+})
+
+// 布局变化（拖拽节点 / 自动排版）-> 同样压入历史，支持撤销重做
+useOntologyStore.subscribe((state, prevState) => {
+  if (state.layout !== prevState.layout && !historySuppressed) {
+    useHistoryStore.getState().push(snapshotFrom(prevState.ontology, prevState.layout))
   }
 })
 

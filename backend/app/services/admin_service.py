@@ -33,17 +33,47 @@ def list_users(db: Session) -> list[dict]:
     ]
 
 
-def delete_user(db: Session, target: User, actor: User) -> None:
-    """删除用户：其项目与文件夹转为公共（user_id 置空）。"""
+def delete_user(
+    db: Session,
+    target: User,
+    actor: User,
+    mode: str = "public",
+    target_user_id: str | None = None,
+) -> None:
+    """删除用户。项目处理方式：
+    - public：项目/文件夹转为公共（user_id 置空）
+    - transfer：项目/文件夹转给指定用户
+    - delete：级联删除项目与文件夹
+    """
     if target.id == actor.id:
         raise ValueError("不能删除当前登录的账号")
     if target.is_admin:
         admin_count = db.query(User).filter(User.is_admin.is_(True)).count()
         if admin_count <= 1:
             raise ValueError("至少需要保留一名管理员")
-    # 数据转为公共
-    db.query(Project).filter(Project.user_id == target.id).update({"user_id": None})
-    db.query(Folder).filter(Folder.user_id == target.id).update({"user_id": None})
+
+    if mode == "transfer":
+        if not target_user_id:
+            raise ValueError("请选择接收项目的用户")
+        if db.get(User, target_user_id) is None:
+            raise ValueError("接收用户不存在")
+        db.query(Project).filter(Project.user_id == target.id).update({"user_id": target_user_id})
+        db.query(Folder).filter(Folder.user_id == target.id).update({"user_id": target_user_id})
+    elif mode == "delete":
+        # 级联删除项目（含本体文档）与文件夹
+        project_ids = [p.id for p in db.query(Project).filter(Project.user_id == target.id).all()]
+        from ..models import OntologyDocument
+
+        if project_ids:
+            db.query(OntologyDocument).filter(OntologyDocument.project_id.in_(project_ids)).delete(
+                synchronize_session=False
+            )
+        db.query(Project).filter(Project.user_id == target.id).delete(synchronize_session=False)
+        db.query(Folder).filter(Folder.user_id == target.id).delete(synchronize_session=False)
+    else:  # public（默认）
+        db.query(Project).filter(Project.user_id == target.id).update({"user_id": None})
+        db.query(Folder).filter(Folder.user_id == target.id).update({"user_id": None})
+
     # 清除其模板下发记录
     db.query(TemplateAssignment).filter(TemplateAssignment.user_id == target.id).delete()
     db.delete(target)

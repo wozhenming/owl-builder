@@ -75,20 +75,18 @@ export default function AdminDialog() {
     }
   }
 
-  const deleteUser = (user: UserAdmin) => {
-    showConfirm(
-      '删除用户',
-      `确定删除用户「${user.username}」吗？其 ${user.projectCount} 个项目将转为公共数据。`,
-      async () => {
-        try {
-          await apiClient.adminDeleteUser(user.id)
-          showToast('用户已删除', 'success')
-          void refresh()
-        } catch (e) {
-          showToast(e instanceof Error ? e.message : '删除失败', 'error')
-        }
-      },
-    )
+  const [deleteUserTarget, setDeleteUserTarget] = useState<UserAdmin | null>(null)
+
+  const doDeleteUser = async (mode: 'public' | 'transfer' | 'delete', targetUserId?: string) => {
+    if (!deleteUserTarget) return
+    try {
+      await apiClient.adminDeleteUser(deleteUserTarget.id, { mode, targetUserId })
+      showToast('用户已删除', 'success')
+      setDeleteUserTarget(null)
+      void refresh()
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : '删除失败', 'error')
+    }
   }
 
   const deleteTemplate = (tpl: TemplateAdmin) => {
@@ -154,7 +152,7 @@ export default function AdminDialog() {
               <Loader2 className="mr-2 animate-spin" size={18} /> 加载中…
             </div>
           ) : tab === 'users' ? (
-            <UserTable users={users} onReset={resetPassword} onDelete={deleteUser} />
+            <UserTable users={users} onReset={resetPassword} onDelete={setDeleteUserTarget} />
           ) : (
             <TemplateTable
               templates={templates}
@@ -176,6 +174,14 @@ export default function AdminDialog() {
           setEditTemplate(null)
           void refresh()
         }}
+      />
+
+      {/* 删除用户对话框（含项目处理方式选项） */}
+      <DeleteUserDialog
+        user={deleteUserTarget}
+        users={users}
+        onClose={() => setDeleteUserTarget(null)}
+        onConfirm={(mode, targetUserId) => void doDeleteUser(mode, targetUserId)}
       />
 
       {/* 重置密码对话框 */}
@@ -203,6 +209,99 @@ export default function AdminDialog() {
         </div>
       </Modal>
     </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// 删除用户对话框：项目处理方式选择
+// ---------------------------------------------------------------------------
+
+function DeleteUserDialog({
+  user,
+  users,
+  onClose,
+  onConfirm,
+}: {
+  user: UserAdmin | null
+  users: UserAdmin[]
+  onClose: () => void
+  onConfirm: (mode: 'public' | 'transfer' | 'delete', targetUserId?: string) => void
+}) {
+  const [mode, setMode] = useState<'public' | 'transfer' | 'delete'>('public')
+  const [targetUserId, setTargetUserId] = useState('')
+
+  useEffect(() => {
+    if (user) {
+      setMode('public')
+      setTargetUserId('')
+    }
+  }, [user])
+
+  const candidates = users.filter((u) => u.id !== user?.id)
+
+  return (
+    <Modal
+      title={`删除用户「${user?.username ?? ''}」`}
+      open={user !== null}
+      onClose={onClose}
+      width="max-w-md"
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>
+            取消
+          </Button>
+          <Button
+            variant="danger"
+            icon={<Trash2 size={14} />}
+            disabled={mode === 'transfer' && !targetUserId}
+            onClick={() => onConfirm(mode, mode === 'transfer' ? targetUserId : undefined)}
+          >
+            删除用户
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-3">
+        <p className="text-sm text-slate-600">
+          该用户有 <b>{user?.projectCount ?? 0}</b> 个项目。请选择这些项目的处理方式：
+        </p>
+        <label className={`flex cursor-pointer items-start gap-2 rounded-lg border p-3 ${mode === 'public' ? 'border-primary-400 bg-primary-50' : 'border-slate-200'}`}>
+          <input type="radio" name="delmode" checked={mode === 'public'} onChange={() => setMode('public')} className="mt-0.5 h-4 w-4 text-primary-600" />
+          <span>
+            <span className="block text-sm font-medium text-slate-800">转为公开项目</span>
+            <span className="block text-xs text-slate-500">所有登录用户可见、可编辑（数据保留）</span>
+          </span>
+        </label>
+        <label className={`flex cursor-pointer items-start gap-2 rounded-lg border p-3 ${mode === 'transfer' ? 'border-primary-400 bg-primary-50' : 'border-slate-200'}`}>
+          <input type="radio" name="delmode" checked={mode === 'transfer'} onChange={() => setMode('transfer')} className="mt-0.5 h-4 w-4 text-primary-600" />
+          <span className="flex-1">
+            <span className="block text-sm font-medium text-slate-800">转给指定用户</span>
+            <span className="block text-xs text-slate-500">项目与文件夹移交给所选用户</span>
+            {mode === 'transfer' && (
+              <select
+                value={targetUserId}
+                onChange={(e) => setTargetUserId(e.target.value)}
+                className="mt-2 w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm focus:border-primary-500 focus:outline-none"
+              >
+                <option value="">请选择接收用户…</option>
+                {candidates.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.username}
+                  </option>
+                ))}
+              </select>
+            )}
+          </span>
+        </label>
+        <label className={`flex cursor-pointer items-start gap-2 rounded-lg border p-3 ${mode === 'delete' ? 'border-red-400 bg-red-50' : 'border-slate-200'}`}>
+          <input type="radio" name="delmode" checked={mode === 'delete'} onChange={() => setMode('delete')} className="mt-0.5 h-4 w-4 text-red-600" />
+          <span>
+            <span className="block text-sm font-medium text-slate-800">连同项目一起删除</span>
+            <span className="block text-xs text-slate-500">项目及全部本体数据将被永久删除，不可恢复</span>
+          </span>
+        </label>
+      </div>
+    </Modal>
   )
 }
 

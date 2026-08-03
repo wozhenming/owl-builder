@@ -6,6 +6,7 @@ import Select from '../common/Select'
 import { useOntologyStore } from '../../store/ontologyStore'
 import { useUiStore } from '../../store/uiStore'
 import type { OntologyEdge, OntologyNode, PropertyKind } from '../../types/ontology'
+import { computeClassDepths, levelColor } from '../../utils/autoLayout'
 import { EDGE_KIND_LABELS, findNode, nodeDisplayName } from '../../utils/helpers'
 import { HELP } from '../../utils/helpTexts'
 
@@ -45,6 +46,28 @@ function NodeDetailView({ node }: { node: OntologyNode }) {
     const incoming = ontology.edges.filter((e) => e.kind !== 'subclass' && e.target === node.id)
     return { parents, children, outgoing, incoming }
   }, [ontology.edges, node.id])
+
+  // ---- 层级信息：深度 + 祖先路径（沿 subclass 边向上） ----
+  const depth = useMemo(
+    () => (node.kind === 'class' ? (computeClassDepths(ontology).get(node.id) ?? 0) : undefined),
+    [ontology, node],
+  )
+  const ancestors = useMemo(() => {
+    if (node.kind !== 'class') return []
+    const chain: OntologyNode[] = []
+    const visited = new Set<string>([node.id])
+    let current = node.id
+    while (true) {
+      const edge = ontology.edges.find((e) => e.kind === 'subclass' && e.source === current)
+      if (!edge || visited.has(edge.target)) break
+      const parent = findNode(ontology, edge.target)
+      if (!parent || parent.kind !== 'class') break
+      chain.unshift(parent)
+      visited.add(edge.target)
+      current = edge.target
+    }
+    return chain
+  }, [ontology, node])
 
   const save = () => {
     updateNode(node.id, {
@@ -108,6 +131,45 @@ function NodeDetailView({ node }: { node: OntologyNode }) {
           删除
         </Button>
       </div>
+
+      {/* 层级信息 */}
+      {node.kind === 'class' ? (
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-medium text-slate-500">类层级</p>
+            <span
+              className="rounded px-2 py-0.5 text-[11px] font-medium text-white"
+              style={{ backgroundColor: levelColor(depth ?? 0) }}
+              title="层级越深颜色越浅"
+            >
+              第 {(depth ?? 0) + 1} 层
+            </span>
+          </div>
+          {ancestors.length > 0 ? (
+            <p className="mt-2 flex flex-wrap items-center gap-1 text-xs text-slate-600">
+              {ancestors.map((a) => (
+                <span key={a.id} className="flex items-center gap-1">
+                  <button
+                    onClick={() => selectNode(a.id)}
+                    className="text-primary-600 hover:underline"
+                    title="选中该节点"
+                  >
+                    {a.label || a.name}
+                  </button>
+                  <span className="text-slate-300">›</span>
+                </span>
+              ))}
+              <span className="font-medium text-slate-800">{node.label || node.name}</span>
+            </p>
+          ) : (
+            <p className="mt-1.5 text-xs text-slate-400">根类（没有父类，位于最顶层）</p>
+          )}
+        </div>
+      ) : (
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5 text-xs text-slate-500">
+          数据类型节点不属于类层级，作为数据属性的值域使用。
+        </div>
+      )}
 
       <Input label="IRI 本地名" labelTip={HELP.className} value={name} onChange={(e) => setName(e.target.value)} />
       <Input label="中文显示名" labelTip={HELP.displayName} value={label} onChange={(e) => setLabel(e.target.value)} placeholder="显示在画布上的名称" />

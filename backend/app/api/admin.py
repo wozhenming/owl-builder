@@ -58,15 +58,19 @@ def reset_password(
 @router.delete("/users/{user_id}", status_code=204)
 def delete_user(
     user_id: str,
+    mode: str = "public",
+    targetUserId: str | None = None,
     db: Session = Depends(get_db),
     actor: User | None = Depends(current_user_or_none),
 ):
     _require_admin(actor)
+    if mode not in ("public", "transfer", "delete"):
+        raise HTTPException(status_code=400, detail="mode 只能是 public / transfer / delete")
     target = db.get(User, user_id)
     if target is None:
         raise HTTPException(status_code=404, detail="用户不存在")
     try:
-        svc.delete_user(db, target, actor)
+        svc.delete_user(db, target, actor, mode=mode, target_user_id=targetUserId)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 

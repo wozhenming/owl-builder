@@ -117,7 +117,16 @@ export const apiClient = {
       method: 'PUT',
       body: JSON.stringify({ password }),
     }),
-  adminDeleteUser: (userId: string) => request<void>(`/admin/users/${userId}`, { method: 'DELETE' }),
+  adminDeleteUser: (
+    userId: string,
+    options?: { mode?: 'public' | 'transfer' | 'delete'; targetUserId?: string },
+  ) => {
+    const params = new URLSearchParams()
+    if (options?.mode) params.set('mode', options.mode)
+    if (options?.targetUserId) params.set('targetUserId', options.targetUserId)
+    const qs = params.toString()
+    return request<void>(`/admin/users/${userId}${qs ? `?${qs}` : ''}`, { method: 'DELETE' })
+  },
   adminListTemplates: () => request<TemplateAdmin[]>('/admin/templates'),
   adminSaveTemplate: (
     id: string | null,

@@ -20,6 +20,7 @@ export default function ConfirmDialog() {
       open={open}
       onClose={hideConfirm}
       width="max-w-md"
+      zIndex="z-[70]"
       footer={
         <>
           <Button variant="secondary" onClick={hideConfirm}>

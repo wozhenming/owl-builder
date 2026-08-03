@@ -9,10 +9,12 @@ interface ModalProps {
   /** 底部按钮区 */
   footer?: ReactNode
   width?: string
+  /** 层级（z-index），需要压过其他弹层时传入更高的值 */
+  zIndex?: string
 }
 
 /** 通用模态框：遮罩 + 居中卡片 + Esc 关闭 */
-export default function Modal({ title, open, onClose, children, footer, width = 'max-w-lg' }: ModalProps) {
+export default function Modal({ title, open, onClose, children, footer, width = 'max-w-lg', zIndex = 'z-50' }: ModalProps) {
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
@@ -25,7 +27,7 @@ export default function Modal({ title, open, onClose, children, footer, width = 
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className={`fixed inset-0 ${zIndex} flex items-center justify-center p-4`}>
       <div className="absolute inset-0 bg-slate-900/40" onClick={onClose} />
       <div className={`relative w-full ${width} rounded-xl bg-white shadow-2xl`}>
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3.5">

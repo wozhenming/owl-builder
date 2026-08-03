@@ -3,17 +3,22 @@
 import json
 from typing import Any, Dict, Optional
 
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from ..models import Folder, OntologyDocument, Project
+from ..models import Folder, OntologyDocument, Project, User
 
 
 def get_project(db: Session, project_id: str) -> Optional[Project]:
     return db.get(Project, project_id)
 
 
-def list_projects(db: Session) -> list[Project]:
-    return db.query(Project).order_by(Project.updated_at.desc()).all()
+def list_projects(db: Session, user: User | None = None) -> list[Project]:
+    """匿名用户看全部；登录用户看公共（无主）+ 自己的项目。"""
+    query = db.query(Project)
+    if user is not None:
+        query = query.filter(or_(Project.user_id.is_(None), Project.user_id == user.id))
+    return query.order_by(Project.updated_at.desc()).all()
 
 
 def create_project(
@@ -23,8 +28,15 @@ def create_project(
     ontology_iri: str = "http://example.org/cost-ontology#",
     version: str = "1.0.0",
     ontology: Optional[Dict[str, Any]] = None,
+    user: User | None = None,
 ) -> Project:
-    project = Project(name=name, description=description, ontology_iri=ontology_iri, version=version)
+    project = Project(
+        name=name,
+        description=description,
+        ontology_iri=ontology_iri,
+        version=version,
+        user_id=user.id if user else None,
+    )
     db.add(project)
     db.flush()  # 获取 project.id
 
@@ -67,12 +79,15 @@ def update_project(db: Session, project: Project, patch: Dict[str, Any]) -> Proj
 # 文件夹
 # ---------------------------------------------------------------------------
 
-def list_folders(db: Session) -> list[Folder]:
-    return db.query(Folder).order_by(Folder.created_at.asc()).all()
+def list_folders(db: Session, user: User | None = None) -> list[Folder]:
+    query = db.query(Folder)
+    if user is not None:
+        query = query.filter(or_(Folder.user_id.is_(None), Folder.user_id == user.id))
+    return query.order_by(Folder.created_at.asc()).all()
 
 
-def create_folder(db: Session, name: str) -> Folder:
-    folder = Folder(name=name)
+def create_folder(db: Session, name: str, user: User | None = None) -> Folder:
+    folder = Folder(name=name, user_id=user.id if user else None)
     db.add(folder)
     db.commit()
     db.refresh(folder)

@@ -12,11 +12,15 @@ import {
   Inbox,
   Layers,
   Loader2,
+  LogIn,
+  LogOut,
   Pencil,
   Plus,
   Sparkles,
   Trash2,
+  UserRound,
 } from 'lucide-react'
+import { useAuthStore } from '../store/authStore'
 import Button from './common/Button'
 import Input, { Textarea } from './common/Input'
 import Modal from './common/Modal'
@@ -43,6 +47,10 @@ type Filter = { kind: 'all' } | { kind: 'uncategorized' } | { kind: 'folder'; id
 export default function ProjectsScreen({ onOpenProject }: ProjectsScreenProps) {
   const showToast = useUiStore((s) => s.showToast)
   const showConfirm = useUiStore((s) => s.showConfirm)
+  const authUser = useAuthStore((s) => s.user)
+  const authToken = useAuthStore((s) => s.token)
+  const logout = useAuthStore((s) => s.logout)
+  const openAuthDialog = useAuthStore((s) => s.openAuthDialog)
 
   const [projects, setProjects] = useState<ProjectSummary[]>([])
   const [folders, setFolders] = useState<FolderSummary[]>([])
@@ -87,6 +95,12 @@ export default function ProjectsScreen({ onOpenProject }: ProjectsScreenProps) {
       void refresh(ok)
     })
   }, [])
+
+  // 登录/登出后刷新项目列表（数据按用户隔离）
+  useEffect(() => {
+    if (backendAvailable !== null) void refresh(backendAvailable)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authToken])
 
   // ---- 项目操作 ----
   const createProject = async (folderId?: string | null) => {
@@ -310,6 +324,29 @@ export default function ProjectsScreen({ onOpenProject }: ProjectsScreenProps) {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            {authUser ? (
+              <span className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600">
+                <UserRound size={13} className="text-primary-600" />
+                {authUser.username}
+                {authUser.isAdmin && (
+                  <span className="rounded bg-amber-100 px-1 py-0.5 text-[10px] text-amber-700">管理员</span>
+                )}
+                <button
+                  onClick={() => {
+                    void logout()
+                    showToast('已退出登录', 'info')
+                  }}
+                  className="ml-1 flex items-center gap-1 text-slate-400 hover:text-red-500"
+                  title="退出登录"
+                >
+                  <LogOut size={13} />
+                </button>
+              </span>
+            ) : (
+              <Button variant="ghost" size="sm" icon={<LogIn size={14} />} onClick={openAuthDialog}>
+                登录
+              </Button>
+            )}
             {backendAvailable === true && (
               <span className="flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
                 <Cloud size={13} /> 已连接后端（云端存储）

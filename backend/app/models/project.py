@@ -19,6 +19,8 @@ class Project(Base):
     version: Mapped[str] = mapped_column(String(50), default="1.0.0")
     # 所属文件夹（可空）。列在启动时自动迁移（见 main.py migrate()）
     folder_id: Mapped[str | None] = mapped_column(String(64), nullable=True, default=None)
+    # 创建者（可空 = 匿名模式创建，登录后归首个注册用户/共享）
+    user_id: Mapped[str | None] = mapped_column(String(64), nullable=True, default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 

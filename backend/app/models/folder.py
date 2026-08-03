@@ -14,4 +14,5 @@ class Folder(Base):
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: uuid.uuid4().hex[:12])
     name: Mapped[str] = mapped_column(String(100), nullable=False)
+    user_id: Mapped[str | None] = mapped_column(String(64), nullable=True, default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())

@@ -1,3 +1,4 @@
+import { getStoredToken } from '../store/authStore'
 import type { FolderSummary, ImportResult, ProjectDetail, ProjectSummary } from '../types/api'
 
 /**
@@ -6,6 +7,7 @@ import type { FolderSummary, ImportResult, ProjectDetail, ProjectSummary } from 
  * 注意：后端是可选的 —— 当后端不可用时，前端可退化为
  * localStorage 模式（由 useOntology hook 处理）。
  * 本模块所有方法在后端不可用时抛出 ApiUnavailableError。
+ * 已登录时自动附带 Authorization: Bearer <token>。
  */
 
 export class ApiUnavailableError extends Error {
@@ -15,13 +17,27 @@ export class ApiUnavailableError extends Error {
   }
 }
 
+/** 登录失效错误（token 过期/被登出） */
+export class AuthRequiredError extends Error {
+  constructor(message = '登录已过期，请重新登录') {
+    super(message)
+    this.name = 'AuthRequiredError'
+  }
+}
+
 const BASE = '/api'
+
+/** 附带认证头的请求头 */
+function authHeaders(): Record<string, string> {
+  const token = getStoredToken()
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response
   try {
     res = await fetch(`${BASE}${path}`, {
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
       ...init,
     })
   } catch {
@@ -35,6 +51,15 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       if (body.detail) detail = body.detail
     } catch {
       /* 非 JSON 响应 */
+    }
+    if (res.status === 401) {
+      // token 失效：清除本地会话
+      try {
+        localStorage.removeItem('cost-ontology:auth-token')
+      } catch {
+        /* 忽略 */
+      }
+      throw new AuthRequiredError(detail)
     }
     throw new Error(detail)
   }

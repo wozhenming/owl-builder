@@ -50,7 +50,9 @@ export default function ContextMenu() {
   const menu = useUiStore((s) => s.contextMenu)
   const close = useUiStore((s) => s.closeContextMenu)
 
-  // 点击菜单外 / Esc / 滚动关闭
+  // 点击菜单外 / Esc / 滚动关闭。
+  // 注意：必须用「捕获阶段」（capture: true）——ReactFlow 画布会在 mousedown
+  // 中阻止事件冒泡，冒泡阶段监听收不到点击，菜单将无法关闭。
   useEffect(() => {
     if (!menu) return
     const onDown = (e: MouseEvent) => {
@@ -62,13 +64,13 @@ export default function ContextMenu() {
       if (e.key === 'Escape') close()
     }
     const onScroll = () => close()
-    document.addEventListener('mousedown', onDown)
-    document.addEventListener('keydown', onKey)
-    document.addEventListener('wheel', onScroll, { passive: true })
+    document.addEventListener('mousedown', onDown, true)
+    document.addEventListener('keydown', onKey, true)
+    document.addEventListener('wheel', onScroll, { passive: true, capture: true })
     return () => {
-      document.removeEventListener('mousedown', onDown)
-      document.removeEventListener('keydown', onKey)
-      document.removeEventListener('wheel', onScroll)
+      document.removeEventListener('mousedown', onDown, true)
+      document.removeEventListener('keydown', onKey, true)
+      document.removeEventListener('wheel', onScroll, { capture: true })
     }
   }, [menu, close])
 

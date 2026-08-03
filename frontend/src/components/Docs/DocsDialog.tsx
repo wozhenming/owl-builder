@@ -5,6 +5,16 @@ import { BookOpen, X } from 'lucide-react'
 import { useUiStore } from '../../store/uiStore'
 import docsContent from '../../../docs/usage.md?raw'
 
+/** 文档引用的截图资源（markdown 中写文件名即可，如 ![编辑器](editor.png)） */
+const docImages = import.meta.glob('../../../docs/images/*.{png,jpg,jpeg}', {
+  eager: true,
+  import: 'default',
+}) as Record<string, string>
+
+const IMAGE_MAP: Record<string, string> = Object.fromEntries(
+  Object.entries(docImages).map(([path, url]) => [path.split('/').pop() ?? '', url]),
+)
+
 /** 从 Markdown 中提取二级标题作为目录 */
 function extractHeadings(raw: string): string[] {
   return raw
@@ -127,6 +137,13 @@ export default function DocsDialog() {
                     <a href={href} target="_blank" rel="noreferrer" className="text-primary-600 underline">
                       {children}
                     </a>
+                  ),
+                  img: ({ src, alt }) => (
+                    <img
+                      src={IMAGE_MAP[src ?? ''] ?? src}
+                      alt={alt ?? ''}
+                      className="my-3 w-full rounded-lg border border-slate-200 shadow-sm"
+                    />
                   ),
                 }}
               >

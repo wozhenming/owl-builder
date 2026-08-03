@@ -56,17 +56,20 @@ export function AddPropertyForm({ onDone }: AddPropertyFormProps) {
     }
   }, [pendingKind])
 
-  // 连线拖放后预填 domain/range
+  // 连线拖放后预填 domain/range（右键「添加子类」进入时仅预填起点，终点留空由用户选择）
   useEffect(() => {
     if (pendingConnection) {
-      setDomain(pendingConnection.source)
-      setRange(pendingConnection.target)
-      const targetNode = findNode(ontology, pendingConnection.target)
-      if (targetNode?.kind === 'datatype') {
-        setKind('dataProperty')
-      } else {
-        setKind('objectProperty')
+      if (pendingConnection.source) setDomain(pendingConnection.source)
+      if (pendingConnection.target) setRange(pendingConnection.target)
+      if (pendingConnection.target) {
+        const targetNode = findNode(ontology, pendingConnection.target)
+        if (targetNode?.kind === 'datatype') {
+          setKind('dataProperty')
+        } else {
+          setKind('objectProperty')
+        }
       }
+      // target 为空（右键添加子类）：保持 pendingKind 设置的「子类关系」
     }
   }, [pendingConnection, ontology])
 

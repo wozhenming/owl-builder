@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { BookOpen, X } from 'lucide-react'
+import { BookOpen, Maximize2, Minimize2, X } from 'lucide-react'
 import { useUiStore } from '../../store/uiStore'
 import docsContent from '../../../docs/usage.md?raw'
 
@@ -28,6 +28,7 @@ export default function DocsDialog() {
   const open = useUiStore((s) => s.docsOpen)
   const closeDocs = useUiStore((s) => s.closeDocs)
   const [active, setActive] = useState<string | null>(null)
+  const [fullscreen, setFullscreen] = useState(false)
 
   const headings = useMemo(() => extractHeadings(docsContent), [])
 
@@ -51,20 +52,35 @@ export default function DocsDialog() {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-slate-900/50" onClick={closeDocs} />
-      <div className="relative flex h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl">
+      <div
+        className={`relative flex w-full flex-col overflow-hidden rounded-xl bg-white shadow-2xl transition-all ${
+          fullscreen ? 'h-[96vh] max-w-[96vw]' : 'h-[85vh] max-w-4xl'
+        }`}
+      >
         {/* 头部 */}
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3.5">
           <h3 className="flex items-center gap-2 text-base font-semibold text-slate-800">
             <BookOpen size={18} className="text-primary-600" />
             CostOntology Editor 使用文档
           </h3>
-          <button
-            onClick={closeDocs}
-            className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-            aria-label="关闭文档"
-          >
-            <X size={18} />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setFullscreen((f) => !f)}
+              className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+              aria-label={fullscreen ? '退出全屏' : '全屏'}
+              title={fullscreen ? '退出全屏' : '全屏阅读'}
+            >
+              {fullscreen ? <Minimize2 size={17} /> : <Maximize2 size={17} />}
+            </button>
+            <button
+              onClick={closeDocs}
+              className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+              aria-label="关闭文档"
+              title="关闭 (Esc)"
+            >
+              <X size={18} />
+            </button>
+          </div>
         </div>
 
         {/* 主体：左目录 + 右内容 */}

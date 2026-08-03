@@ -7,6 +7,14 @@ export type SidePanelTab = 'detail' | 'add' | 'code'
 /** 添加视图的子标签 */
 export type AddViewTab = 'class' | 'property' | 'datatype'
 
+/** 右键菜单状态 */
+export interface ContextMenuState {
+  x: number
+  y: number
+  type: 'node' | 'edge' | 'pane'
+  id?: string
+}
+
 interface UiState {
   /** 当前选中的元素：节点 id 或边 id（同一时刻只选中一个） */
   selectedNodeId: string | null
@@ -23,6 +31,8 @@ interface UiState {
   layoutRequestId: number
   /** 使用文档对话框 */
   docsOpen: boolean
+  /** 画布右键菜单 */
+  contextMenu: ContextMenuState | null
   /** 对话框可见状态 */
   dialogs: {
     addClass: boolean
@@ -51,6 +61,8 @@ interface UiState {
   requestLayout: () => void
   openDocs: () => void
   closeDocs: () => void
+  openContextMenu: (menu: ContextMenuState) => void
+  closeContextMenu: () => void
   showConfirm: (title: string, message: string, onConfirm: () => void) => void
   hideConfirm: () => void
   showToast: (message: string, kind?: 'success' | 'error' | 'info') => void
@@ -66,6 +78,7 @@ export const useUiStore = create<UiState>((set) => ({
   pendingKind: null,
   layoutRequestId: 0,
   docsOpen: false,
+  contextMenu: null,
   dialogs: {
     addClass: false,
     addProperty: false,
@@ -96,6 +109,8 @@ export const useUiStore = create<UiState>((set) => ({
   requestLayout: () => set((s) => ({ layoutRequestId: s.layoutRequestId + 1 })),
   openDocs: () => set({ docsOpen: true }),
   closeDocs: () => set({ docsOpen: false }),
+  openContextMenu: (menu) => set({ contextMenu: menu }),
+  closeContextMenu: () => set({ contextMenu: null }),
   showConfirm: (title, message, onConfirm) =>
     set((s) => ({
       confirmState: { title, message, onConfirm },

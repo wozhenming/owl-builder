@@ -32,6 +32,7 @@ import {
 } from './useGraph'
 import NodeRenderer from './NodeRenderer'
 import EdgeRenderer from './EdgeRenderer'
+import ContextMenu from './ContextMenu'
 
 const nodeTypes: NodeTypes = { ontology: NodeRenderer }
 const edgeTypes: EdgeTypes = { ontologyEdge: EdgeRenderer }
@@ -110,6 +111,30 @@ function GraphCanvas() {
   const layoutRequestId = useUiStore((s) => s.layoutRequestId)
   const { onNodeDragStop, onConnect, onSelectionChange, onPaneClick } = useGraphHandlers()
   const deleteSelected = useGraphDeletion()
+  const openContextMenu = useUiStore((s) => s.openContextMenu)
+
+  // 右键菜单：节点 / 边 / 画布空白
+  const onNodeContextMenu = useCallback(
+    (e: React.MouseEvent, node: FlowNode) => {
+      e.preventDefault()
+      openContextMenu({ x: e.clientX, y: e.clientY, type: 'node', id: node.id })
+    },
+    [openContextMenu],
+  )
+  const onEdgeContextMenu = useCallback(
+    (e: React.MouseEvent, edge: FlowEdge) => {
+      e.preventDefault()
+      openContextMenu({ x: e.clientX, y: e.clientY, type: 'edge', id: edge.id })
+    },
+    [openContextMenu],
+  )
+  const onPaneContextMenu = useCallback(
+    (e: React.MouseEvent | MouseEvent) => {
+      e.preventDefault()
+      openContextMenu({ x: e.clientX, y: e.clientY, type: 'pane' })
+    },
+    [openContextMenu],
+  )
 
   const [nodes, setNodes, onNodesChange] = useNodesState<FlowNode>([])
   const [edges, setEdges, onEdgesChange] = useEdgesState<FlowEdge>([])
@@ -191,6 +216,9 @@ function GraphCanvas() {
         onConnect={onConnect}
         onSelectionChange={onSelectionChange}
         onPaneClick={onPaneClick}
+        onNodeContextMenu={onNodeContextMenu}
+        onEdgeContextMenu={onEdgeContextMenu}
+        onPaneContextMenu={onPaneContextMenu}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         fitView
@@ -214,6 +242,9 @@ function GraphCanvas() {
       </ReactFlow>
 
       <Legend />
+
+      {/* 右键菜单 */}
+      <ContextMenu />
 
       {/* 统计角标 */}
       <div className="pointer-events-none absolute right-4 top-4 z-10 rounded-lg border border-slate-200 bg-white/90 px-3 py-2 text-xs text-slate-500 shadow-sm backdrop-blur">

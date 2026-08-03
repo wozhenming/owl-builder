@@ -334,6 +334,27 @@ def add_datatype(project_id: str, xsd_name: str) -> dict:
         return {"id": new_id}
 
 
+@mcp.tool(description="移动节点在画布上的位置（布局）。x、y 为画布坐标；返回移动后的位置")
+def move_node(project_id: str, node_id: str, x: float, y: float) -> dict:
+    user, err = _ensure_user()
+    if err:
+        return err
+    with SessionLocal() as db:
+        project = svc.get_project(db, project_id)
+        if project is None:
+            return {"error": f"项目 {project_id} 不存在"}
+        if not _can_access(project, user):
+            return {"error": f"无权修改项目 {project_id}（他人的私有项目）"}
+        model = svc.get_ontology(db, project_id)
+        if not any(n.get("id") == node_id for n in model.get("nodes", [])):
+            return {"error": f"节点 {node_id} 不存在"}
+        layout = model.get("layout") or {}
+        layout[str(node_id)] = {"x": float(x), "y": float(y)}
+        model["layout"] = layout
+        svc.save_ontology(db, project, model)
+        return {"nodeId": node_id, "x": float(x), "y": float(y)}
+
+
 # ---------------------------------------------------------------------------
 # 模板
 # ---------------------------------------------------------------------------
@@ -379,8 +400,8 @@ def create_project_from_template(template_id: str, name: str = "") -> dict:
 # OWL 导入导出
 # ---------------------------------------------------------------------------
 
-@mcp.tool(description="导出项目为标准 OWL RDF/XML 文本（私有项目仅归属者可导出）")
-def export_owl(project_id: str) -> str:
+@mcp.tool(description="导出项目为标准 OWL RDF/XML 文本（私有项目仅归属者可导出）。filename 为建议的文件名（含 .owl 后缀），供下载时使用")
+def export_owl(project_id: str, filename: str = "导出本体.owl") -> str:
     user, err = _ensure_user()
     if err:
         return err["error"]

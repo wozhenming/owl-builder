@@ -288,7 +288,13 @@ export default function AiAssistantPanel({ projectId }: AiAssistantPanelProps) {
                           {toolLabel(op.tool)}
                           {op.tool === 'export_owl' && typeof op.result === 'string' && op.result.length > 100 && (
                             <button
-                              onClick={() => downloadTextFile(op.result, '导出本体.owl', 'application/rdf+xml')}
+                              onClick={() =>
+                                downloadTextFile(
+                                  op.result,
+                                  String((op.args as { filename?: string } | undefined)?.filename ?? '导出本体.owl'),
+                                  'application/rdf+xml',
+                                )
+                              }
                               className="ml-0.5 flex items-center gap-0.5 rounded bg-emerald-600 px-1 py-0.5 text-white hover:bg-emerald-700"
                               title="下载导出的 OWL 文件"
                             >

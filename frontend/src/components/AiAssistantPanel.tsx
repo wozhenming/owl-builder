@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
-import { Bot, ChevronDown, ChevronUp, Loader2, MessageSquarePlus, Send, Trash2, Wrench } from 'lucide-react'
+import { Bot, ChevronDown, ChevronUp, Download, Loader2, MessageSquarePlus, Send, Trash2, Wrench } from 'lucide-react'
 import Button from './common/Button'
 import { apiClient } from '../services/apiClient'
 import { useAuthStore } from '../store/authStore'
 import { reloadProjectData } from '../hooks/useOntology'
+import { downloadTextFile } from '../services/fileService'
 import { snapshotFrom, useHistoryStore } from '../store/historyStore'
 import { useOntologyStore } from '../store/ontologyStore'
 import { useOperationLogStore } from '../store/operationLogStore'
@@ -276,7 +277,7 @@ export default function AiAssistantPanel({ projectId }: AiAssistantPanelProps) {
                   }`}
                 >
                   {m.role === 'assistant' && m.operations && m.operations.length > 0 && (
-                    <div className="mb-1.5 flex flex-wrap gap-1">
+                    <div className="mb-1.5 flex flex-wrap items-center gap-1">
                       {m.operations.map((op, j) => (
                         <span
                           key={j}
@@ -285,6 +286,15 @@ export default function AiAssistantPanel({ projectId }: AiAssistantPanelProps) {
                         >
                           <Wrench size={10} />
                           {toolLabel(op.tool)}
+                          {op.tool === 'export_owl' && typeof op.result === 'string' && op.result.length > 100 && (
+                            <button
+                              onClick={() => downloadTextFile(op.result, '导出本体.owl', 'application/rdf+xml')}
+                              className="ml-0.5 flex items-center gap-0.5 rounded bg-emerald-600 px-1 py-0.5 text-white hover:bg-emerald-700"
+                              title="下载导出的 OWL 文件"
+                            >
+                              <Download size={9} /> 下载
+                            </button>
+                          )}
                         </span>
                       ))}
                     </div>

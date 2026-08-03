@@ -51,7 +51,7 @@ function MarkdownReply({ content }: { content: string }) {
 interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
-  operations?: Array<{ tool: string; result: string }>
+  operations?: Array<{ tool: string; result: string; args?: Record<string, unknown> }>
 }
 
 interface AiAssistantPanelProps {

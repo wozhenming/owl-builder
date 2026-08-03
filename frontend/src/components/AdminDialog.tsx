@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import {
+  Copy,
   FileUp,
+  KeyRound,
   Loader2,
   Pencil,
   Plus,
@@ -15,7 +17,7 @@ import Modal from './common/Modal'
 import { apiClient } from '../services/apiClient'
 import { useAuthStore } from '../store/authStore'
 import { useUiStore } from '../store/uiStore'
-import type { TemplateAdmin, UserAdmin } from '../types/api'
+import type { McpTokenAdmin, TemplateAdmin, UserAdmin } from '../types/api'
 import { formatRelativeTime } from '../utils/formatters'
 
 /** 管理后台对话框：用户管理 + 模板管理（仅管理员可见入口） */
@@ -25,19 +27,28 @@ export default function AdminDialog() {
   const showToast = useUiStore((s) => s.showToast)
   const showConfirm = useUiStore((s) => s.showConfirm)
 
-  const [tab, setTab] = useState<'users' | 'templates'>('users')
+  const [tab, setTab] = useState<'users' | 'templates' | 'mcptokens'>('users')
   const [users, setUsers] = useState<UserAdmin[]>([])
   const [templates, setTemplates] = useState<TemplateAdmin[]>([])
+  const [mcpTokens, setMcpTokens] = useState<McpTokenAdmin[]>([])
   const [loading, setLoading] = useState(false)
   // 模板编辑状态
   const [editTemplate, setEditTemplate] = useState<TemplateAdmin | 'new' | null>(null)
+  // MCP 令牌：申请目标与结果展示
+  const [mcpApplyUser, setMcpApplyUser] = useState('')
+  const [issuedToken, setIssuedToken] = useState<{ token: string; username: string } | null>(null)
 
   const refresh = async () => {
     setLoading(true)
     try {
-      const [u, t] = await Promise.all([apiClient.adminListUsers(), apiClient.adminListTemplates()])
+      const [u, t, m] = await Promise.all([
+        apiClient.adminListUsers(),
+        apiClient.adminListTemplates(),
+        apiClient.adminListMcpTokens(),
+      ])
       setUsers(u)
       setTemplates(t)
+      setMcpTokens(m)
     } catch (e) {
       showToast(e instanceof Error ? e.message : '加载失败', 'error')
     } finally {
@@ -89,6 +100,44 @@ export default function AdminDialog() {
     }
   }
 
+  const issueMcpToken = async () => {
+    if (!mcpApplyUser) {
+      showToast('请先选择用户', 'error')
+      return
+    }
+    try {
+      const result = await apiClient.adminCreateMcpToken(mcpApplyUser)
+      setIssuedToken({ token: result.token, username: result.username })
+      showToast(result.message, 'success')
+      setMcpApplyUser('')
+      void refresh()
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : '申请失败', 'error')
+    }
+  }
+
+  const revokeMcpToken = (t: McpTokenAdmin) => {
+    showConfirm('废除 MCP 令牌', `确定废除「${t.username}」的 MCP 令牌吗？该令牌立即失效，需重新申请。`, async () => {
+      try {
+        await apiClient.adminRevokeMcpToken(t.id)
+        showToast('令牌已废除', 'success')
+        void refresh()
+      } catch (e) {
+        showToast(e instanceof Error ? e.message : '废除失败', 'error')
+      }
+    })
+  }
+
+  const copyToken = async () => {
+    if (!issuedToken) return
+    try {
+      await navigator.clipboard.writeText(issuedToken.token)
+      showToast('令牌已复制', 'success')
+    } catch {
+      showToast('复制失败，请手动选择复制', 'error')
+    }
+  }
+
   const deleteTemplate = (tpl: TemplateAdmin) => {
     showConfirm('删除模板', `确定删除模板「${tpl.name}」吗？`, async () => {
       try {
@@ -128,6 +177,7 @@ export default function AdminDialog() {
             [
               { key: 'users', label: '用户管理', icon: <Users size={14} /> },
               { key: 'templates', label: '模板管理', icon: <Boxes size={14} /> },
+              { key: 'mcptokens', label: 'MCP 令牌', icon: <KeyRound size={14} /> },
             ] as const
           ).map((t) => (
             <button
@@ -153,6 +203,18 @@ export default function AdminDialog() {
             </div>
           ) : tab === 'users' ? (
             <UserTable users={users} onReset={resetPassword} onDelete={setDeleteUserTarget} />
+          ) : tab === 'mcptokens' ? (
+            <McpTokenTable
+              tokens={mcpTokens}
+              users={users}
+              applyUser={mcpApplyUser}
+              onApplyUser={setMcpApplyUser}
+              onIssue={() => void issueMcpToken()}
+              onRevoke={revokeMcpToken}
+              issued={issuedToken}
+              onCopy={copyToken}
+              onCloseIssued={() => setIssuedToken(null)}
+            />
           ) : (
             <TemplateTable
               templates={templates}
@@ -366,6 +428,132 @@ function UserTable({
         </tbody>
       </table>
       {users.length === 0 && <p className="p-6 text-center text-sm text-slate-400">暂无用户</p>}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// MCP 令牌管理
+// ---------------------------------------------------------------------------
+
+function McpTokenTable({
+  tokens,
+  users,
+  applyUser,
+  onApplyUser,
+  onIssue,
+  onRevoke,
+  issued,
+  onCopy,
+  onCloseIssued,
+}: {
+  tokens: McpTokenAdmin[]
+  users: UserAdmin[]
+  applyUser: string
+  onApplyUser: (id: string) => void
+  onIssue: () => void
+  onRevoke: (t: McpTokenAdmin) => void
+  issued: { token: string; username: string } | null
+  onCopy: () => void
+  onCloseIssued: () => void
+}) {
+  const active = tokens.filter((t) => !t.revoked)
+  const candidates = users.filter((u) => !active.some((t) => t.userId === u.id))
+
+  return (
+    <div className="space-y-3">
+      <div className="rounded-lg border border-sky-200 bg-sky-50 p-3 text-xs leading-relaxed text-sky-800">
+        MCP 令牌用于 AI 助手（Claude Desktop / Cursor 等）连接本编辑器。每个令牌绑定一个账号，
+        AI 只能操作该账号可见的数据（公共 + 自己的）。<b>每用户仅一个有效令牌</b>——重新申请会自动废除旧令牌。
+      </div>
+
+      {/* 申请令牌 */}
+      <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white p-3">
+        <select
+          value={applyUser}
+          onChange={(e) => onApplyUser(e.target.value)}
+          className="flex-1 rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm focus:border-primary-500 focus:outline-none"
+        >
+          <option value="">为用户申请令牌…</option>
+          {candidates.map((u) => (
+            <option key={u.id} value={u.id}>
+              {u.username}
+            </option>
+          ))}
+          {candidates.length === 0 && (
+            <option value="" disabled>
+              所有用户均已有有效令牌
+            </option>
+          )}
+        </select>
+        <Button variant="primary" size="sm" icon={<KeyRound size={14} />} onClick={onIssue} disabled={!applyUser}>
+          申请令牌
+        </Button>
+      </div>
+
+      {/* 已颁发令牌列表 */}
+      <div className="overflow-x-auto rounded-lg border border-slate-200">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-slate-50 text-left text-xs text-slate-500">
+              <th className="px-3 py-2 font-medium">用户</th>
+              <th className="px-3 py-2 font-medium">令牌</th>
+              <th className="px-3 py-2 font-medium">状态</th>
+              <th className="px-3 py-2 font-medium">颁发时间</th>
+              <th className="px-3 py-2 font-medium">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            {tokens.map((t) => (
+              <tr key={t.id} className="border-t border-slate-100">
+                <td className="px-3 py-2 font-medium text-slate-800">{t.username}</td>
+                <td className="px-3 py-2">
+                  <code className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] text-slate-600">
+                    {t.token.slice(0, 10)}…
+                  </code>
+                </td>
+                <td className="px-3 py-2">
+                  {t.revoked ? (
+                    <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-400">已废除</span>
+                  ) : (
+                    <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">有效</span>
+                  )}
+                </td>
+                <td className="px-3 py-2 text-xs text-slate-400">{formatRelativeTime(t.createdAt)}</td>
+                <td className="px-3 py-2">
+                  {!t.revoked && (
+                    <button
+                      onClick={() => onRevoke(t)}
+                      className="rounded p-1 text-slate-400 hover:text-red-500"
+                      title="废除令牌"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {tokens.length === 0 && <p className="p-6 text-center text-sm text-slate-400">暂无令牌，为上方用户申请一个</p>}
+      </div>
+
+      {/* 新令牌展示（一次性） */}
+      {issued && (
+        <Modal title={`「${issued.username}」的 MCP 令牌`} open={issued !== null} onClose={onCloseIssued} width="max-w-md">
+          <div className="space-y-3">
+            <p className="text-xs leading-relaxed text-amber-700">
+              请立即复制并妥善保存——<b>此令牌只显示这一次</b>。配置到 AI 客户端后即可使用。
+            </p>
+            <div className="flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 p-2">
+              <code className="flex-1 break-all font-mono text-xs text-slate-700">{issued.token}</code>
+              <Button size="sm" icon={<Copy size={13} />} onClick={onCopy}>
+                复制
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   )
 }

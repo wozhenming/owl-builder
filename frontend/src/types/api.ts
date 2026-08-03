@@ -45,6 +45,16 @@ export interface TemplateAdmin extends TemplateSummary {
   assignedUserIds: string[]
 }
 
+/** 管理员视角的 MCP 令牌 */
+export interface McpTokenAdmin {
+  id: string
+  token: string
+  userId: string
+  username: string
+  revoked: boolean
+  createdAt: string
+}
+
 /** 项目详情（含本体 JSON 数据） */
 export interface ProjectDetail extends ProjectSummary {
   ontology: Record<string, unknown>

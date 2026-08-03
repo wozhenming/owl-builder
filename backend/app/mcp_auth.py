@@ -1,58 +1,39 @@
-"""MCP 令牌认证。
+"""MCP 令牌认证：令牌由管理员在管理后台为用户生成，绑定用户账号。
 
-令牌来源（优先级）：
-1. 环境变量 COST_ONTOLOGY_MCP_TOKEN
-2. backend/.mcp_token 文件（首次启动自动生成随机令牌并落盘）
-
-未配置令牌时认证不启用（向后兼容）；配置后：
-- HTTP 端点 /mcp 必须携带 Authorization: Bearer <token>
-- stdio 模式通过 --token <token> 参数校验
+- HTTP 请求头 Authorization: Bearer <token> -> 解析令牌 -> 用户
+- stdio 启动参数 --token <token> -> 启动时绑定用户
+- 每用户仅一个有效令牌；令牌被废除后立即失效（401）
 """
 
-import os
-import secrets
-from pathlib import Path
+from fastapi import Request
+from sqlalchemy.orm import Session
 
-TOKEN_FILE = Path(__file__).resolve().parent.parent / ".mcp_token"
-
-
-def get_mcp_token() -> str | None:
-    env = os.environ.get("COST_ONTOLOGY_MCP_TOKEN")
-    if env:
-        return env.strip()
-    try:
-        if TOKEN_FILE.exists():
-            token = TOKEN_FILE.read_text(encoding="utf-8").strip()
-            if token:
-                return token
-    except OSError:
-        pass
-    return None
+from .database import SessionLocal
+from .models import User
+from .services.mcp_token_service import resolve_user_by_token
 
 
-def ensure_mcp_token() -> str:
-    """确保令牌存在（未配置时生成随机令牌写入文件），返回当前令牌。"""
-    token = get_mcp_token()
-    if token:
-        return token
-    token = secrets.token_urlsafe(32)
-    try:
-        TOKEN_FILE.write_text(token, encoding="utf-8")
-    except OSError:
-        pass  # 写入失败仅影响后续进程的令牌一致性
-    return token
+def bearer_token_from(authorization: str | None) -> str | None:
+    if not authorization:
+        return None
+    if authorization.lower().startswith("bearer "):
+        return authorization.split(" ", 1)[1].strip()
+    return authorization.strip() or None
+
+
+def resolve_user_by_request(request: Request) -> User | None:
+    """从 HTTP 请求解析 MCP 令牌对应的用户（无有效令牌返回 None）。"""
+    token = bearer_token_from(request.headers.get("authorization"))
+    if not token:
+        return None
+    with SessionLocal() as db:
+        return resolve_user_by_token(db, token)
 
 
 def verify_mcp_token(authorization: str | None, provided: str | None = None) -> bool:
-    """校验令牌。未配置令牌时返回 True（不启用认证）。"""
-    expected = get_mcp_token()
-    if not expected:
-        return True
-    candidate = provided
-    if candidate is None and authorization:
-        # 支持 Authorization: Bearer <token> 或直接传 token
-        if authorization.lower().startswith("bearer "):
-            candidate = authorization.split(" ", 1)[1].strip()
-        else:
-            candidate = authorization.strip()
-    return bool(candidate) and secrets.compare_digest(candidate, expected)
+    """令牌是否有效（HTTP 中间件用）。"""
+    token = provided or bearer_token_from(authorization)
+    if not token:
+        return False
+    with SessionLocal() as db:
+        return resolve_user_by_token(db, token) is not None

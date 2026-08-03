@@ -2,6 +2,7 @@ import { getStoredToken } from '../store/authStore'
 import type {
   FolderSummary,
   ImportResult,
+  McpTokenAdmin,
   ProjectDetail,
   ProjectSummary,
   TemplateAdmin,
@@ -154,6 +155,14 @@ export const apiClient = {
     })
   },
   adminDeleteTemplate: (id: string) => request<void>(`/admin/templates/${id}`, { method: 'DELETE' }),
+  // ---- MCP 令牌管理 ----
+  adminListMcpTokens: () => request<McpTokenAdmin[]>('/admin/mcp-tokens'),
+  adminCreateMcpToken: (userId: string) =>
+    request<{ token: string; username: string; message: string }>('/admin/mcp-tokens', {
+      method: 'POST',
+      body: JSON.stringify({ userId }),
+    }),
+  adminRevokeMcpToken: (tokenId: string) => request<void>(`/admin/mcp-tokens/${tokenId}`, { method: 'DELETE' }),
 
   // ---- 本体数据 ----
   saveOntology: (projectId: string, ontology: Record<string, unknown>) =>

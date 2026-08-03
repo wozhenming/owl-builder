@@ -12,6 +12,7 @@ from ..database import get_db
 from ..models import Template, User
 from ..schemas import TemplateAdminOut, UserAdminOut
 from ..services import admin_service as svc
+from ..services import mcp_token_service as svc_tokens
 from ..services.owl_service import OwlParseError, parse_owl
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -53,6 +54,52 @@ def reset_password(
         raise HTTPException(status_code=404, detail="用户不存在")
     svc.reset_password(db, target, body.password)
     return {"status": "ok", "message": f"已重置用户「{target.username}」的密码"}
+
+
+# ---------------------------------------------------------------------------
+# MCP 令牌管理
+# ---------------------------------------------------------------------------
+
+class McpTokenCreateRequest(BaseModel):
+    userId: str = Field(min_length=1)
+
+
+@router.get("/mcp-tokens")
+def list_mcp_tokens(
+    db: Session = Depends(get_db),
+    actor: User | None = Depends(current_user_or_none),
+):
+    _require_admin(actor)
+    return svc_tokens.list_mcp_tokens(db)
+
+
+@router.post("/mcp-tokens")
+def create_mcp_token(
+    body: McpTokenCreateRequest,
+    db: Session = Depends(get_db),
+    actor: User | None = Depends(current_user_or_none),
+):
+    _require_admin(actor)
+    target = db.get(User, body.userId)
+    if target is None:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    token = svc_tokens.create_mcp_token(db, body.userId)
+    return {
+        "token": token,
+        "username": target.username,
+        "message": f"已为用户「{target.username}」生成 MCP 令牌（旧的未废除令牌已失效）",
+    }
+
+
+@router.delete("/mcp-tokens/{token_id}", status_code=204)
+def revoke_mcp_token(
+    token_id: str,
+    db: Session = Depends(get_db),
+    actor: User | None = Depends(current_user_or_none),
+):
+    _require_admin(actor)
+    if not svc_tokens.revoke_mcp_token(db, token_id):
+        raise HTTPException(status_code=404, detail="令牌不存在")
 
 
 @router.delete("/users/{user_id}", status_code=204)

@@ -148,7 +148,7 @@ OWL 生成支持：`owl:Class`、`rdfs:subClassOf`、`rdfs:label`（中文）、
 
 ## 📝 说明
 
-- **登录**：首页可注册/登录账号，项目与文件夹按用户隔离（共享数据 + 自己的数据）；不登录也可匿名使用。密码经 pbkdf2 加盐哈希存储，第一个注册的用户接管历史数据并成为管理员
+- **登录**：首页可注册/登录账号，项目与文件夹按用户隔离（公共数据 + 自己的数据，退出登录后看不到他人的私有项目）；不登录也可匿名使用（仅可见公共数据）。密码经 pbkdf2 加盐哈希存储，第一个注册的用户接管历史数据并成为管理员
 - 后端数据存储为 SQLite（`backend/cost_ontology.db`），可通过环境变量 `COST_ONTOLOGY_DB` 指定路径
 - 前端 OWL 解析/生成在浏览器本地完成（`services/owlParser.ts` / `owlGenerator.ts`），
   后端亦有等价实现（`services/owl_service.py`），两者行为一致

@@ -14,10 +14,12 @@ def get_project(db: Session, project_id: str) -> Optional[Project]:
 
 
 def list_projects(db: Session, user: User | None = None) -> list[Project]:
-    """匿名用户看全部；登录用户看公共（无主）+ 自己的项目。"""
+    """匿名用户仅可见公共项目（无归属）；登录用户可见公共 + 自己的项目。"""
     query = db.query(Project)
     if user is not None:
         query = query.filter(or_(Project.user_id.is_(None), Project.user_id == user.id))
+    else:
+        query = query.filter(Project.user_id.is_(None))
     return query.order_by(Project.updated_at.desc()).all()
 
 
@@ -80,9 +82,12 @@ def update_project(db: Session, project: Project, patch: Dict[str, Any]) -> Proj
 # ---------------------------------------------------------------------------
 
 def list_folders(db: Session, user: User | None = None) -> list[Folder]:
+    """匿名用户仅可见公共文件夹；登录用户可见公共 + 自己的。"""
     query = db.query(Folder)
     if user is not None:
         query = query.filter(or_(Folder.user_id.is_(None), Folder.user_id == user.id))
+    else:
+        query = query.filter(Folder.user_id.is_(None))
     return query.order_by(Folder.created_at.asc()).all()
 
 

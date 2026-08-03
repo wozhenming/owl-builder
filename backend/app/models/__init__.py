@@ -1,3 +1,4 @@
+from .ai_chat_session import AiChatSession
 from .ai_setting import AiSetting
 from .folder import Folder
 from .mcp_token import McpToken
@@ -7,6 +8,7 @@ from .template import Template, TemplateAssignment
 from .user import AuthToken, User
 
 __all__ = [
+    "AiChatSession",
     "AiSetting",
     "AuthToken",
     "Folder",

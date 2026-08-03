@@ -6,6 +6,7 @@ import { apiClient, ApiUnavailableError, isBackendAvailable } from '../services/
 import { localOntology, localProjects } from '../services/storageService'
 import { applySnapshot, snapshotFrom, useHistoryStore } from '../store/historyStore'
 import { createEmptyOntology, suppressHistoryPush, useOntologyStore } from '../store/ontologyStore'
+import { useOperationLogStore } from '../store/operationLogStore'
 import { useUiStore } from '../store/uiStore'
 
 /**
@@ -203,6 +204,7 @@ export function useOntology(): ProjectHandle {
 
   /** 撤销 / 重做（同时恢复节点内容与布局） */
   const undo = useCallback(() => {
+    useOperationLogStore.getState().suppressNextChange()
     const history = useHistoryStore.getState()
     const snap = history.undo()
     if (!snap) return
@@ -218,6 +220,7 @@ export function useOntology(): ProjectHandle {
   }, [])
 
   const redo = useCallback(() => {
+    useOperationLogStore.getState().suppressNextChange()
     const history = useHistoryStore.getState()
     const snap = history.redo()
     if (!snap) return
@@ -265,11 +268,19 @@ export function useOntologyData() {
   )
 }
 
+export interface ReloadOptions {
+  /** 是否重置撤销/重做历史（默认 true；AI 操作场景传 false 以保留「操作前快照」可撤回） */
+  resetHistory?: boolean
+  /** 是否标记为未保存（默认 false；AI 修改了数据后传 true 以启用保存按钮） */
+  markDirty?: boolean
+}
+
 /**
  * 重新加载项目数据（模块级，供 AI 助手等外部模块在数据被修改后刷新画布）。
  * 优先后端，其次本地。
  */
-export async function reloadProjectData(projectId: string): Promise<void> {
+export async function reloadProjectData(projectId: string, options: ReloadOptions = {}): Promise<void> {
+  const { resetHistory = true, markDirty = false } = options
   const store = useOntologyStore.getState()
   store.setBusy(true)
   try {
@@ -302,8 +313,9 @@ export async function reloadProjectData(projectId: string): Promise<void> {
     }
     suppressHistoryPush(() => {
       store.setOntology(next ?? createEmptyOntology(), nextLayout)
+      if (markDirty) store.markDirty()
     })
-    useHistoryStore.getState().reset()
+    if (resetHistory) useHistoryStore.getState().reset()
     store.setError(null)
   } catch (e) {
     store.setError(e instanceof Error ? e.message : String(e))

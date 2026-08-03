@@ -9,6 +9,7 @@ import { useOntology, useOntologyData } from '../hooks/useOntology'
 import { useHistoryShortcuts } from '../hooks/useHistory'
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts'
 import { useOntologyStore } from '../store/ontologyStore'
+import { useOperationLogStore } from '../store/operationLogStore'
 import { useUiStore } from '../store/uiStore'
 
 /** 读取当前未保存状态（事件回调内使用，避免订阅渲染） */
@@ -42,6 +43,11 @@ export default function EditorScreen({ projectId, onBack }: EditorScreenProps) {
   useEffect(() => {
     return () => useUiStore.getState().hideUnsavedDialog()
   }, [])
+
+  // 打开项目：重置操作日志（本次会话）
+  useEffect(() => {
+    useOperationLogStore.getState().resetLogs()
+  }, [projectId])
 
   // 返回项目列表：有未保存修改时先询问
   const handleBack = useCallback(() => {

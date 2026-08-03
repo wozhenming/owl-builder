@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
-import { Bot, ChevronDown, ChevronUp, Loader2, Send, Wrench } from 'lucide-react'
+import { Bot, ChevronDown, ChevronUp, Loader2, MessageSquarePlus, Send, Trash2, Wrench } from 'lucide-react'
 import Button from './common/Button'
 import { apiClient } from '../services/apiClient'
 import { useAuthStore } from '../store/authStore'
 import { reloadProjectData } from '../hooks/useOntology'
+import { snapshotFrom, useHistoryStore } from '../store/historyStore'
+import { useOntologyStore } from '../store/ontologyStore'
+import { useOperationLogStore } from '../store/operationLogStore'
 
 /** AI 回复的 Markdown 渲染（轻量样式，过滤链接/图片防注入） */
 function MarkdownReply({ content }: { content: string }) {
@@ -54,18 +57,81 @@ interface AiAssistantPanelProps {
   projectId: string
 }
 
-/** 编辑页底部的大模型助手对话框：自然语言编辑本体（登录后可用） */
+/** 编辑页底部的大模型助手对话框：自然语言编辑本体（登录后可用，对话持久化） */
 export default function AiAssistantPanel({ projectId }: AiAssistantPanelProps) {
   const user = useAuthStore((s) => s.user)
   const [expanded, setExpanded] = useState(false)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
+  const [sessions, setSessions] = useState<
+    Array<{ id: string; title: string; messageCount: number; updatedAt: string }>
+  >([])
+  const [sessionId, setSessionId] = useState('')
+  const [sessionsLoading, setSessionsLoading] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const addLog = useOperationLogStore((s) => s.addLog)
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight })
   }, [messages, expanded, sending])
+
+  // 项目切换：重置会话
+  useEffect(() => {
+    setMessages([])
+    setSessionId('')
+    if (user) {
+      setSessionsLoading(true)
+      apiClient
+        .aiListSessions(projectId)
+        .then(setSessions)
+        .catch(() => setSessions([]))
+        .finally(() => setSessionsLoading(false))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId, user])
+
+  const refreshSessions = async () => {
+    try {
+      setSessions(await apiClient.aiListSessions(projectId))
+    } catch {
+      /* 忽略 */
+    }
+  }
+
+  const newSession = async () => {
+    if (!user) return
+    try {
+      const s = await apiClient.aiCreateSession(projectId)
+      setSessions((prev) => [{ id: s.id, title: s.title, messageCount: 0, updatedAt: '' }, ...prev])
+      setSessionId(s.id)
+      setMessages([])
+    } catch (e) {
+      // 忽略
+    }
+  }
+
+  const openSession = async (id: string) => {
+    try {
+      const s = await apiClient.aiGetSession(id)
+      setSessionId(id)
+      setMessages(s.messages.map((m) => ({ role: m.role as ChatMessage['role'], content: m.content })))
+    } catch {
+      /* 忽略 */
+    }
+  }
+
+  const deleteSession = async () => {
+    if (!sessionId) return
+    try {
+      await apiClient.aiDeleteSession(sessionId)
+    } catch {
+      /* 忽略 */
+    }
+    setSessionId('')
+    setMessages([])
+    void refreshSessions()
+  }
 
   const send = async () => {
     const text = input.trim()
@@ -75,17 +141,25 @@ export default function AiAssistantPanel({ projectId }: AiAssistantPanelProps) {
     const userMsg: ChatMessage = { role: 'user', content: text }
     setMessages((prev) => [...prev, userMsg])
     setSending(true)
+    // 记录「AI 操作前」快照：AI 修改后可 Ctrl+Z 撤回
+    const store = useOntologyStore.getState()
+    useHistoryStore.getState().push(snapshotFrom(store.ontology, store.layout))
     try {
-      const res = await apiClient.aiChat(projectId, [...history, { role: 'user', content: text }])
+      const res = await apiClient.aiChat(projectId, [...history, { role: 'user', content: text }], sessionId)
       const assistantMsg: ChatMessage = {
         role: 'assistant',
         content: res.error ?? res.reply ?? '（无回复）',
         operations: res.operations?.length ? res.operations : undefined,
       }
       setMessages((prev) => [...prev, assistantMsg])
-      // AI 可能修改了本体：刷新画布
       if (res.operations?.length) {
-        void reloadProjectData(projectId)
+        // 记录 AI 操作日志
+        for (const op of res.operations) {
+          addLog('ai', `${toolLabel(op.tool)}${op.result?.slice(0, 40) ? `（${op.result.slice(0, 40)}）` : ''}`)
+        }
+        // 刷新画布：保留历史（可撤回 AI 操作）、标记未保存（可保存）
+        void reloadProjectData(projectId, { resetHistory: false, markDirty: true })
+        void refreshSessions()
       }
     } catch (e) {
       setMessages((prev) => [
@@ -135,6 +209,42 @@ export default function AiAssistantPanel({ projectId }: AiAssistantPanelProps) {
       {/* 对话区 */}
       {expanded && (
         <div className="flex h-64 flex-col border-t border-slate-100">
+          {/* 会话栏 */}
+          <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-1.5">
+            <select
+              value={sessionId}
+              onChange={(e) => e.target.value && void openSession(e.target.value)}
+              disabled={!user || sessionsLoading}
+              className="min-w-0 flex-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 focus:border-primary-500 focus:outline-none"
+              title="选择历史对话"
+            >
+              <option value="">（新对话，未保存）</option>
+              {sessions.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.title || '新对话'}
+                  {s.messageCount > 0 ? ` · ${s.messageCount} 条` : ''}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={() => void newSession()}
+              disabled={!user}
+              className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-primary-600 hover:bg-primary-50 disabled:text-slate-300"
+              title="新对话"
+            >
+              <MessageSquarePlus size={13} /> 新对话
+            </button>
+            {sessionId && (
+              <button
+                onClick={() => void deleteSession()}
+                className="rounded-md p-1 text-slate-400 hover:bg-red-50 hover:text-red-500"
+                title="删除当前对话"
+              >
+                <Trash2 size={13} />
+              </button>
+            )}
+          </div>
+
           <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-3">
             {messages.length === 0 && (
               <div className="flex h-full items-center justify-center">

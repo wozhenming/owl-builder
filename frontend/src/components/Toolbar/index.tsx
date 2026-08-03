@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   ArrowLeft,
   BookOpen,
@@ -9,6 +9,7 @@ import {
   FileDown,
   FileUp,
   GitFork,
+  History,
   Loader2,
   Link2,
   Redo2,
@@ -23,7 +24,9 @@ import { useUiStore } from '../../store/uiStore'
 import { useHistoryStore } from '../../store/historyStore'
 import { downloadOwl, importJsonBackup, importOwlFile } from '../../services/fileService'
 import Tooltip from '../common/Tooltip'
+import OperationLogDialog from '../OperationLogDialog'
 import { HELP } from '../../utils/helpTexts'
+import { useOperationLogStore } from '../../store/operationLogStore'
 
 interface ToolbarProps {
   projectName: string
@@ -58,6 +61,7 @@ export default function Toolbar({
   const showConfirm = useUiStore((s) => s.showConfirm)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [logOpen, setLogOpen] = useState(false)
 
   // Ctrl+O 导入文件
   useEffect(() => {
@@ -257,6 +261,22 @@ export default function Toolbar({
         源码
       </Button>
       </Tooltip>
+      <Tooltip content="查看本次打开项目后的操作记录（用户 + AI）">
+      <Button
+        variant="ghost"
+        size="sm"
+        icon={<History size={14} />}
+        onClick={() => setLogOpen(true)}
+        title="历史操作"
+      >
+        历史操作
+        {useOperationLogStore((s) => s.logs.length) > 0 && (
+          <span className="ml-0.5 rounded bg-primary-100 px-1 text-[10px] font-medium text-primary-700">
+            {useOperationLogStore((s) => s.logs.length)}
+          </span>
+        )}
+      </Button>
+      </Tooltip>
       <Button
         variant="ghost"
         size="sm"
@@ -266,6 +286,7 @@ export default function Toolbar({
       >
         帮助
       </Button>
+      <OperationLogDialog open={logOpen} onClose={() => setLogOpen(false)} />
     </header>
   )
 }

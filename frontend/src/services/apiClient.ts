@@ -166,11 +166,33 @@ export const apiClient = {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
-  aiChat: (projectId: string, messages: Array<{ role: string; content: string }>) =>
+  aiChat: (projectId: string, messages: Array<{ role: string; content: string }>, sessionId: string = '') =>
     request<{ reply?: string; error?: string; operations: Array<{ tool: string; result: string }> }>('/ai/chat', {
       method: 'POST',
-      body: JSON.stringify({ projectId, messages }),
+      body: JSON.stringify({ projectId, sessionId, messages }),
     }),
+  // ---- AI 对话会话 ----
+  aiListSessions: (projectId: string) =>
+    request<
+      Array<{
+        id: string
+        projectId: string
+        title: string
+        messageCount: number
+        createdAt: string
+        updatedAt: string
+      }>
+    >(`/ai/sessions?projectId=${encodeURIComponent(projectId)}`),
+  aiCreateSession: (projectId: string) =>
+    request<{ id: string; projectId: string; title: string; messages: unknown[] }>('/ai/sessions', {
+      method: 'POST',
+      body: JSON.stringify({ projectId }),
+    }),
+  aiGetSession: (sessionId: string) =>
+    request<{ id: string; title: string; messages: Array<{ role: string; content: string }> }>(
+      `/ai/sessions/${sessionId}`,
+    ),
+  aiDeleteSession: (sessionId: string) => request<void>(`/ai/sessions/${sessionId}`, { method: 'DELETE' }),
   // ---- MCP 令牌管理 ----
   adminListMcpTokens: () => request<McpTokenAdmin[]>('/admin/mcp-tokens'),
   adminCreateMcpToken: (userId: string) =>

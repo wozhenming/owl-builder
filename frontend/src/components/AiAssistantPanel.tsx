@@ -1,9 +1,48 @@
 import { useEffect, useRef, useState } from 'react'
+import ReactMarkdown from 'react-markdown'
 import { Bot, ChevronDown, ChevronUp, Loader2, Send, Wrench } from 'lucide-react'
 import Button from './common/Button'
 import { apiClient } from '../services/apiClient'
 import { useAuthStore } from '../store/authStore'
 import { reloadProjectData } from '../hooks/useOntology'
+
+/** AI 回复的 Markdown 渲染（轻量样式，过滤链接/图片防注入） */
+function MarkdownReply({ content }: { content: string }) {
+  return (
+    <ReactMarkdown
+      components={{
+        p: ({ children }) => <p className="mb-1 last:mb-0">{children}</p>,
+        strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+        em: ({ children }) => <em>{children}</em>,
+        ul: ({ children }) => <ul className="mb-1 list-disc pl-4 last:mb-0">{children}</ul>,
+        ol: ({ children }) => <ol className="mb-1 list-decimal pl-4 last:mb-0">{children}</ol>,
+        li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+        code: ({ children }) => (
+          <code className="rounded bg-slate-200/70 px-1 py-0.5 font-mono text-[0.85em] text-slate-800">
+            {children}
+          </code>
+        ),
+        pre: ({ children }) => (
+          <pre className="mb-1 overflow-x-auto rounded-md bg-slate-100 p-2 font-mono text-xs last:mb-0">
+            {children}
+          </pre>
+        ),
+        h1: ({ children }) => <p className="mb-1 font-semibold last:mb-0">{children}</p>,
+        h2: ({ children }) => <p className="mb-1 font-semibold last:mb-0">{children}</p>,
+        h3: ({ children }) => <p className="mb-1 font-semibold last:mb-0">{children}</p>,
+        blockquote: ({ children }) => (
+          <blockquote className="mb-1 border-l-2 border-slate-300 pl-2 italic text-slate-500 last:mb-0">
+            {children}
+          </blockquote>
+        ),
+        a: () => null, // 不渲染外部链接
+        img: () => null, // 不渲染图片
+      }}
+    >
+      {content}
+    </ReactMarkdown>
+  )
+}
 
 interface ChatMessage {
   role: 'user' | 'assistant'
@@ -135,7 +174,11 @@ export default function AiAssistantPanel({ projectId }: AiAssistantPanelProps) {
                       ))}
                     </div>
                   )}
-                  <span className="whitespace-pre-wrap">{m.content}</span>
+                  {m.role === 'assistant' ? (
+                    <MarkdownReply content={m.content} />
+                  ) : (
+                    <span className="whitespace-pre-wrap break-words">{m.content}</span>
+                  )}
                 </div>
               </div>
             ))}

@@ -18,6 +18,8 @@ interface UiState {
   pendingConnection: { source: string; target: string } | null
   /** 自动排版请求计数（GraphView 监听并执行；每次点击 +1） */
   layoutRequestId: number
+  /** 使用文档对话框 */
+  docsOpen: boolean
   /** 对话框可见状态 */
   dialogs: {
     addClass: boolean
@@ -43,6 +45,8 @@ interface UiState {
   closeDialog: (name: keyof UiState['dialogs']) => void
   setPendingConnection: (conn: { source: string; target: string } | null) => void
   requestLayout: () => void
+  openDocs: () => void
+  closeDocs: () => void
   showConfirm: (title: string, message: string, onConfirm: () => void) => void
   hideConfirm: () => void
   showToast: (message: string, kind?: 'success' | 'error' | 'info') => void
@@ -56,6 +60,7 @@ export const useUiStore = create<UiState>((set) => ({
   addTab: 'class',
   pendingConnection: null,
   layoutRequestId: 0,
+  docsOpen: false,
   dialogs: {
     addClass: false,
     addProperty: false,
@@ -83,6 +88,8 @@ export const useUiStore = create<UiState>((set) => ({
   closeDialog: (name) => set((s) => ({ dialogs: { ...s.dialogs, [name]: false } })),
   setPendingConnection: (conn) => set({ pendingConnection: conn }),
   requestLayout: () => set((s) => ({ layoutRequestId: s.layoutRequestId + 1 })),
+  openDocs: () => set({ docsOpen: true }),
+  closeDocs: () => set({ docsOpen: false }),
   showConfirm: (title, message, onConfirm) =>
     set((s) => ({
       confirmState: { title, message, onConfirm },

@@ -1,6 +1,7 @@
 import { useRef } from 'react'
 import {
   ArrowLeft,
+  BookOpen,
   Box,
   CloudOff,
   CloudUpload,
@@ -19,6 +20,8 @@ import { suppressHistoryPush, useOntologyStore } from '../../store/ontologyStore
 import { useUiStore } from '../../store/uiStore'
 import { useHistoryStore } from '../../store/historyStore'
 import { downloadOwl, importJsonBackup, importOwlFile } from '../../services/fileService'
+import Tooltip from '../common/Tooltip'
+import { HELP } from '../../utils/helpTexts'
 
 interface ToolbarProps {
   projectName: string
@@ -101,9 +104,11 @@ export default function Toolbar({
   return (
     <header className="flex h-14 shrink-0 items-center gap-2 border-b border-slate-200 bg-white px-4">
       {/* 返回与项目名 */}
-      <Button variant="ghost" size="sm" icon={<ArrowLeft size={16} />} onClick={onBack} title="返回项目列表">
+      <Tooltip content={HELP.projectList}>
+      <Button variant="ghost" size="sm" icon={<ArrowLeft size={16} />} onClick={onBack}>
         项目列表
       </Button>
+      </Tooltip>
       <div className="ml-1 flex items-center gap-2">
         <span className="max-w-[180px] truncate text-sm font-semibold text-slate-800" title={projectName}>
           {projectName}
@@ -116,12 +121,17 @@ export default function Toolbar({
       <div className="mx-2 h-6 w-px bg-slate-200" />
 
       {/* 编辑操作 */}
-      <Button variant="secondary" size="sm" icon={<Undo2 size={14} />} onClick={onUndo} disabled={!canUndo} title="撤销 (Ctrl+Z)">
+      <Tooltip content={HELP.undo}>
+      <Button variant="secondary" size="sm" icon={<Undo2 size={14} />} onClick={onUndo} disabled={!canUndo}>
         撤销
       </Button>
-      <Button variant="secondary" size="sm" icon={<Redo2 size={14} />} onClick={onRedo} disabled={!canRedo} title="重做 (Ctrl+Y)">
+      </Tooltip>
+      <Tooltip content={HELP.redo}>
+      <Button variant="secondary" size="sm" icon={<Redo2 size={14} />} onClick={onRedo} disabled={!canRedo}>
         重做
       </Button>
+      </Tooltip>
+      <Tooltip content={HELP.save}>
       <Button
         variant="primary"
         size="sm"
@@ -131,38 +141,46 @@ export default function Toolbar({
       >
         保存
       </Button>
+      </Tooltip>
+      <Tooltip content={HELP.arrange}>
       <Button
         variant="secondary"
         size="sm"
         icon={<Wand2 size={14} />}
         onClick={() => useUiStore.getState().requestLayout()}
-        title="一键整理排版：按类层级分层排列，根类在上、层级用颜色区分"
       >
         自动排版
       </Button>
+      </Tooltip>
 
       <div className="mx-2 h-6 w-px bg-slate-200" />
 
       {/* 添加 */}
+      <Tooltip content={HELP.addClass}>
       <Button variant="secondary" size="sm" icon={<Box size={14} />} onClick={() => openDialog('addClass')}>
         添加类
       </Button>
+      </Tooltip>
+      <Tooltip content={HELP.addProperty}>
       <Button variant="secondary" size="sm" icon={<Link2 size={14} />} onClick={() => openDialog('addProperty')}>
         添加属性
       </Button>
+      </Tooltip>
 
       <div className="mx-2 h-6 w-px bg-slate-200" />
 
       {/* 文件 */}
+      <Tooltip content={HELP.importFile}>
       <Button
         variant="secondary"
         size="sm"
         icon={<FileUp size={14} />}
         onClick={() => fileInputRef.current?.click()}
-        title="导入 .owl 或 .json 备份（将替换当前内容）"
       >
         导入
       </Button>
+      </Tooltip>
+      <Tooltip content={HELP.exportOwl}>
       <Button
         variant="secondary"
         size="sm"
@@ -171,10 +189,10 @@ export default function Toolbar({
           downloadOwl(useOntologyStore.getState().ontology)
           showToast('已导出 .owl 文件', 'success')
         }}
-        title="导出为标准 OWL RDF/XML"
       >
         导出 OWL
       </Button>
+      </Tooltip>
 
       <input
         ref={fileInputRef}
@@ -200,8 +218,19 @@ export default function Toolbar({
           <CloudUpload size={13} /> 已连接
         </span>
       )}
+      <Tooltip content={HELP.codeView}>
       <Button variant="ghost" size="sm" icon={<Code2 size={14} />} onClick={() => setPanelTab('code')}>
         源码
+      </Button>
+      </Tooltip>
+      <Button
+        variant="ghost"
+        size="sm"
+        icon={<BookOpen size={14} />}
+        onClick={() => useUiStore.getState().openDocs()}
+        title="使用文档"
+      >
+        帮助
       </Button>
     </header>
   )

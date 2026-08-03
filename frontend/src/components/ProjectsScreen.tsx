@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import {
+  BookOpen,
   Boxes,
   Cloud,
   CloudOff,
@@ -22,6 +23,7 @@ import type { ProjectSummary } from '../types/api'
 import type { NodeLayoutMap } from '../types/ontology'
 import { formatRelativeTime } from '../utils/formatters'
 import { validateProjectForm } from '../utils/validators'
+import { HELP } from '../utils/helpTexts'
 
 interface ProjectsScreenProps {
   onOpenProject: (id: string) => void
@@ -197,6 +199,9 @@ export default function ProjectsScreen({ onOpenProject }: ProjectsScreenProps) {
                 <CloudOff size={13} /> 本地模式（数据保存在浏览器）
               </span>
             )}
+            <Button variant="secondary" icon={<BookOpen size={15} />} onClick={() => useUiStore.getState().openDocs()}>
+              使用文档
+            </Button>
             <Button variant="primary" icon={<FileUp size={15} />} onClick={() => fileInputRef.current?.click()}>
               导入 .owl 文件
             </Button>
@@ -287,6 +292,7 @@ export default function ProjectsScreen({ onOpenProject }: ProjectsScreenProps) {
         <div className="space-y-4">
           <Input
             label="项目名称"
+            labelTip={HELP.projectName}
             required
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
@@ -294,6 +300,7 @@ export default function ProjectsScreen({ onOpenProject }: ProjectsScreenProps) {
           />
           <Textarea
             label="项目描述"
+            labelTip={HELP.projectDesc}
             value={newDesc}
             onChange={(e) => setNewDesc(e.target.value)}
             placeholder="对本体的用途与范围的说明"
@@ -301,6 +308,7 @@ export default function ProjectsScreen({ onOpenProject }: ProjectsScreenProps) {
           />
           <Input
             label="本体命名空间 IRI"
+            labelTip={HELP.namespaceIri}
             value={newIri}
             onChange={(e) => setNewIri(e.target.value)}
             hint="所有类与属性的 IRI 将以该命名空间为前缀"

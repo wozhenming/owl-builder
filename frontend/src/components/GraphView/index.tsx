@@ -18,6 +18,8 @@ import { useUiStore } from '../../store/uiStore'
 import { useOntologyStore } from '../../store/ontologyStore'
 import { useOntologyData } from '../../hooks/useOntology'
 import { autoLayout, LEVEL_COLORS } from '../../utils/autoLayout'
+import Tooltip from '../common/Tooltip'
+import { LEGEND_HELP } from '../../utils/helpTexts'
 import {
   buildFlowEdges,
   buildFlowNodes,
@@ -47,29 +49,33 @@ const PRO_OPTIONS = { hideAttribution: false }
 
 /** 图例（含层级色带） */
 function Legend() {
-  const items: Array<{ color: string; label: string; dash?: boolean }> = [
-    { color: '#94a3b8', label: '子类关系' },
-    { color: '#3390ff', label: '对象属性' },
-    { color: '#8b5cf6', label: '数据属性' },
-    { color: '#10b981', label: '注解属性', dash: true },
+  const items: Array<{ color: string; label: string; dash?: boolean; tip: string }> = [
+    { color: '#94a3b8', label: '子类关系', tip: LEGEND_HELP.subclass },
+    { color: '#3390ff', label: '对象属性', tip: LEGEND_HELP.objectProperty },
+    { color: '#8b5cf6', label: '数据属性', tip: LEGEND_HELP.dataProperty },
+    { color: '#10b981', label: '注解属性', dash: true, tip: LEGEND_HELP.annotationProperty },
   ]
   return (
     <div className="pointer-events-none absolute left-4 top-4 z-10 rounded-lg border border-slate-200 bg-white/90 px-3 py-2 shadow-sm backdrop-blur">
       <p className="mb-1.5 text-xs font-semibold text-slate-500">图例</p>
       <div className="space-y-1">
         {items.map((i) => (
-          <div key={i.label} className="flex items-center gap-2 text-xs text-slate-600">
-            {i.dash ? (
-              <span className="inline-block w-6 border-t-2 border-dashed" style={{ borderColor: i.color }} />
-            ) : (
-              <span className="inline-block h-0.5 w-6" style={{ background: i.color }} />
-            )}
-            {i.label}
-          </div>
+          <Tooltip key={i.label} content={i.tip} side="right">
+            <div className="flex cursor-help items-center gap-2 text-xs text-slate-600">
+              {i.dash ? (
+                <span className="inline-block w-6 border-t-2 border-dashed" style={{ borderColor: i.color }} />
+              ) : (
+                <span className="inline-block h-0.5 w-6" style={{ background: i.color }} />
+              )}
+              {i.label}
+            </div>
+          </Tooltip>
         ))}
         {/* 层级色带：类节点的头部颜色 = 类层级深度 */}
         <div className="mt-1.5 border-t border-slate-100 pt-1.5">
-          <p className="mb-1 text-xs text-slate-600">类层级（越深色越浅）</p>
+          <Tooltip content={LEGEND_HELP.level} side="right">
+            <p className="mb-1 cursor-help text-xs text-slate-600">类层级（越深色越浅）</p>
+          </Tooltip>
           <div className="flex items-center gap-1">
             {LEVEL_COLORS.map((c, i) => (
               <span

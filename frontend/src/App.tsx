@@ -7,6 +7,7 @@ import AddPropertyDialog from './components/Dialogs/AddPropertyDialog'
 import AddDatatypeDialog from './components/Dialogs/AddDatatypeDialog'
 import Toast from './components/common/Toast'
 import ErrorBoundary from './components/common/ErrorBoundary'
+import DocsDialog from './components/Docs/DocsDialog'
 
 export default function App() {
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(null)
@@ -26,6 +27,7 @@ export default function App() {
       <AddPropertyDialog />
       <AddDatatypeDialog />
       <ConfirmDialog />
+      <DocsDialog />
       <Toast />
     </>
   )

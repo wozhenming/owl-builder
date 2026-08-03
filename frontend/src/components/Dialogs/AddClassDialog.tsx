@@ -7,6 +7,7 @@ import { safeLocalName, useOntologyStore } from '../../store/ontologyStore'
 import { useUiStore } from '../../store/uiStore'
 import { buildIri, hasDuplicateName, isValidEntityName } from '../../utils/helpers'
 import { validateClassForm } from '../../utils/validators'
+import { HELP } from '../../utils/helpTexts'
 
 /** 添加类表单（对话框与侧边面板共用） */
 export function AddClassForm({ onDone }: { onDone?: () => void }) {
@@ -54,6 +55,7 @@ export function AddClassForm({ onDone }: { onDone?: () => void }) {
     <div className="space-y-4">
       <Input
         label="类名（IRI 本地名）"
+        labelTip={HELP.className}
         required
         value={name}
         onChange={(e) => setName(e.target.value)}
@@ -62,12 +64,14 @@ export function AddClassForm({ onDone }: { onDone?: () => void }) {
       />
       <Input
         label="中文显示名"
+        labelTip={HELP.displayName}
         value={label}
         onChange={(e) => setLabel(e.target.value)}
         placeholder="如：分项工程"
       />
       <Textarea
         label="注释（rdfs:comment）"
+        labelTip={HELP.comment}
         value={comment}
         onChange={(e) => setComment(e.target.value)}
         placeholder="对类的说明，将写入 OWL 文件的 rdfs:comment"

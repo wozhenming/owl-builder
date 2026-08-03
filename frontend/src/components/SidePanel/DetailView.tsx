@@ -7,6 +7,7 @@ import { useOntologyStore } from '../../store/ontologyStore'
 import { useUiStore } from '../../store/uiStore'
 import type { OntologyEdge, OntologyNode, PropertyKind } from '../../types/ontology'
 import { EDGE_KIND_LABELS, findNode, nodeDisplayName } from '../../utils/helpers'
+import { HELP } from '../../utils/helpTexts'
 
 /** 空状态 */
 function EmptyState() {
@@ -108,9 +109,9 @@ function NodeDetailView({ node }: { node: OntologyNode }) {
         </Button>
       </div>
 
-      <Input label="IRI 本地名" value={name} onChange={(e) => setName(e.target.value)} />
-      <Input label="中文显示名" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="显示在画布上的名称" />
-      <Textarea label="注释" value={comment} onChange={(e) => setComment(e.target.value)} rows={3} />
+      <Input label="IRI 本地名" labelTip={HELP.className} value={name} onChange={(e) => setName(e.target.value)} />
+      <Input label="中文显示名" labelTip={HELP.displayName} value={label} onChange={(e) => setLabel(e.target.value)} placeholder="显示在画布上的名称" />
+      <Textarea label="注释" labelTip={HELP.comment} value={comment} onChange={(e) => setComment(e.target.value)} rows={3} />
       <div>
         <p className="mb-1 text-xs font-medium text-slate-400">完整 IRI</p>
         <p className="break-all rounded bg-slate-50 px-2 py-1.5 font-mono text-[11px] text-slate-500" title={node.iri}>
@@ -213,6 +214,7 @@ function EdgeDetailView({ edge }: { edge: OntologyEdge }) {
         <>
           <Select
             label="属性类型"
+            labelTip={HELP.propKind}
             value={kind}
             onChange={(e) => setKind(e.target.value as PropertyKind)}
             options={[
@@ -221,9 +223,9 @@ function EdgeDetailView({ edge }: { edge: OntologyEdge }) {
               { value: 'annotationProperty', label: '注解属性' },
             ]}
           />
-          <Input label="属性名（IRI 本地名）" value={name} onChange={(e) => setName(e.target.value)} />
-          <Input label="中文显示名" value={label} onChange={(e) => setLabel(e.target.value)} />
-          <Textarea label="注释" value={comment} onChange={(e) => setComment(e.target.value)} rows={2} />
+          <Input label="属性名（IRI 本地名）" labelTip={HELP.propName} value={name} onChange={(e) => setName(e.target.value)} />
+          <Input label="中文显示名" labelTip={HELP.displayName} value={label} onChange={(e) => setLabel(e.target.value)} />
+          <Textarea label="注释" labelTip={HELP.comment} value={comment} onChange={(e) => setComment(e.target.value)} rows={2} />
           <label className="flex items-center gap-2 text-sm text-slate-700">
             <input
               type="checkbox"
@@ -239,12 +241,14 @@ function EdgeDetailView({ edge }: { edge: OntologyEdge }) {
       <div className="grid grid-cols-1 gap-3">
         <Select
           label={isSubclass ? '子类（起点）' : '定义域 Domain（起点）'}
+          labelTip={isSubclass ? undefined : HELP.domain}
           value={source}
           onChange={(e) => setSource(e.target.value)}
           options={domainOptions}
         />
         <Select
           label={isSubclass ? '父类（终点）' : '值域 Range（终点）'}
+          labelTip={isSubclass ? undefined : HELP.range}
           value={target}
           onChange={(e) => setTarget(e.target.value)}
           options={rangeOptions}

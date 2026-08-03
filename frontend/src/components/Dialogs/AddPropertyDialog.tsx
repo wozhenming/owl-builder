@@ -9,6 +9,8 @@ import { useUiStore } from '../../store/uiStore'
 import type { EdgeKind, PropertyKind } from '../../types/ontology'
 import { XSD_DATATYPES, buildIri, findNode, hasDuplicateName, isValidEntityName, nodeDisplayName } from '../../utils/helpers'
 import { validatePropertyForm } from '../../utils/validators'
+import { HELP } from '../../utils/helpTexts'
+import Tooltip from '../common/Tooltip'
 
 /** XSD 数据类型选项中「尚未添加为节点」的标记值 */
 const XSD_MARKER = '__xsd__'
@@ -60,10 +62,10 @@ export function AddPropertyForm({ onDone }: AddPropertyFormProps) {
     }
   }, [pendingConnection, ontology])
 
-  // 默认选中第一个类作为 domain
+  // 默认选中第一个类作为 domain（仅当不是从画布连线进入时，避免覆盖连线预填的起点）
   useEffect(() => {
-    if (!domain && classes.length > 0) setDomain(classes[0].id)
-  }, [classes, domain])
+    if (!domain && !pendingConnection && classes.length > 0) setDomain(classes[0].id)
+  }, [classes, domain, pendingConnection])
 
   const rangeOptions = useMemo(() => {
     if (kind === 'dataProperty') {
@@ -140,6 +142,7 @@ export function AddPropertyForm({ onDone }: AddPropertyFormProps) {
     <div className="space-y-4">
       <Select
         label="属性类型"
+        labelTip={HELP.propKind}
         value={kind}
         onChange={(e) => setKind(e.target.value as PropertyKind)}
         options={[
@@ -150,6 +153,7 @@ export function AddPropertyForm({ onDone }: AddPropertyFormProps) {
       />
       <Input
         label="属性名（IRI 本地名）"
+        labelTip={HELP.propName}
         required
         value={name}
         onChange={(e) => setName(e.target.value)}
@@ -158,6 +162,7 @@ export function AddPropertyForm({ onDone }: AddPropertyFormProps) {
       />
       <Input
         label="中文显示名"
+        labelTip={HELP.displayName}
         value={label}
         onChange={(e) => setLabel(e.target.value)}
         placeholder="如：单位造价"
@@ -165,6 +170,7 @@ export function AddPropertyForm({ onDone }: AddPropertyFormProps) {
       <div className="grid grid-cols-1 gap-4">
         <Select
           label="定义域 Domain（起点）"
+          labelTip={HELP.domain}
           required
           value={domain}
           onChange={(e) => setDomain(e.target.value)}
@@ -172,6 +178,7 @@ export function AddPropertyForm({ onDone }: AddPropertyFormProps) {
         />
         <Select
           label="值域 Range（终点）"
+          labelTip={HELP.range}
           required
           value={range}
           onChange={(e) => setRange(e.target.value)}
@@ -179,16 +186,21 @@ export function AddPropertyForm({ onDone }: AddPropertyFormProps) {
         />
       </div>
       <label className="flex items-center gap-2 text-sm text-slate-700">
-        <input
-          type="checkbox"
-          checked={functional}
-          onChange={(e) => setFunctional(e.target.checked)}
-          className="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
-        />
-        函数型属性（FunctionalProperty，每个个体最多一个值）
+        <Tooltip content={HELP.functional} side="right">
+          <span className="flex cursor-help items-center gap-2">
+            <input
+              type="checkbox"
+              checked={functional}
+              onChange={(e) => setFunctional(e.target.checked)}
+              className="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+            />
+            函数型属性（FunctionalProperty）
+          </span>
+        </Tooltip>
       </label>
       <Textarea
         label="注释（rdfs:comment）"
+        labelTip={HELP.comment}
         value={comment}
         onChange={(e) => setComment(e.target.value)}
         placeholder="对属性的说明"

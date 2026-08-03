@@ -1,19 +1,22 @@
 import type { InputHTMLAttributes, ReactNode, TextareaHTMLAttributes } from 'react'
+import { LabelWithTip } from './Tooltip'
 
 interface FieldWrapProps {
   label: string
+  /** 标签上的名词/操作解释（鼠标悬浮气泡） */
+  labelTip?: string
   hint?: string
   error?: string
   required?: boolean
   children: ReactNode
 }
 
-/** 表单字段外壳：标签 + 控件 + 提示/错误 */
-export function Field({ label, hint, error, required, children }: FieldWrapProps) {
+/** 表单字段外壳：标签（可带解释气泡）+ 控件 + 提示/错误 */
+export function Field({ label, labelTip, hint, error, required, children }: FieldWrapProps) {
   return (
     <div className="space-y-1">
       <label className="block text-sm font-medium text-slate-700">
-        {label}
+        <LabelWithTip label={label} tip={labelTip} />
         {required && <span className="ml-0.5 text-red-500">*</span>}
       </label>
       {children}
@@ -31,15 +34,16 @@ const baseInputClass =
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label: string
+  labelTip?: string
   hint?: string
   error?: string
   required?: boolean
 }
 
 /** 带标签的单行输入框 */
-export default function Input({ label, hint, error, required, className = '', ...rest }: InputProps) {
+export default function Input({ label, labelTip, hint, error, required, className = '', ...rest }: InputProps) {
   return (
-    <Field label={label} hint={hint} error={error} required={required}>
+    <Field label={label} labelTip={labelTip} hint={hint} error={error} required={required}>
       <input className={`${baseInputClass} ${className}`} {...rest} />
     </Field>
   )
@@ -47,15 +51,16 @@ export default function Input({ label, hint, error, required, className = '', ..
 
 interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
   label: string
+  labelTip?: string
   hint?: string
   error?: string
   required?: boolean
 }
 
 /** 带标签的多行文本域 */
-export function Textarea({ label, hint, error, required, className = '', ...rest }: TextareaProps) {
+export function Textarea({ label, labelTip, hint, error, required, className = '', ...rest }: TextareaProps) {
   return (
-    <Field label={label} hint={hint} error={error} required={required}>
+    <Field label={label} labelTip={labelTip} hint={hint} error={error} required={required}>
       <textarea className={`${baseInputClass} resize-y ${className}`} {...rest} />
     </Field>
   )

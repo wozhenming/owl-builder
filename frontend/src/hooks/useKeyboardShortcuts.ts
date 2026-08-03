@@ -19,7 +19,8 @@ interface ShortcutOptions {
  *   Ctrl+Shift+S     添加子类关系
  *   Ctrl+Shift+P     添加属性
  *   Ctrl+E           自动排版
- *   Ctrl+1 / 2 / 3   切换右侧面板（详情 / 添加 / 源码）
+ *   Ctrl+Shift+1/2/3 切换右侧面板（详情 / 添加 / 源码）
+ *   （注意：不能用 Ctrl+1/2/3，浏览器会切换标签页且无法被网页拦截）
  */
 export function useKeyboardShortcuts({ onSave }: ShortcutOptions) {
   useEffect(() => {
@@ -54,13 +55,12 @@ export function useKeyboardShortcuts({ onSave }: ShortcutOptions) {
           ui.requestLayout()
           break
         case '1':
-          ui.setPanelTab('detail')
-          break
         case '2':
-          ui.setPanelTab('add')
-          break
         case '3':
-          ui.setPanelTab('code')
+          if (e.shiftKey) {
+            e.preventDefault()
+            ui.setPanelTab(key === '1' ? 'detail' : key === '2' ? 'add' : 'code')
+          }
           break
         default:
           break

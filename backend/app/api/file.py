@@ -6,7 +6,9 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
+from ..api.deps import current_user_or_none
 from ..database import get_db
+from ..models import User
 from ..schemas import ImportResult
 from ..services import ontology_service as svc
 from ..services.owl_service import OwlParseError, generate_owl, parse_owl
@@ -17,8 +19,12 @@ MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 
 
 @router.post("/import", response_model=ImportResult)
-async def import_owl(file: UploadFile = File(...), db: Session = Depends(get_db)):
-    """上传 .owl 文件 -> 解析 -> 创建项目并保存。"""
+async def import_owl(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    user: User | None = Depends(current_user_or_none),
+):
+    """上传 .owl 文件 -> 解析 -> 创建项目并保存（登录用户的导入归其所有，匿名导入为公共）。"""
     if not file.filename or not file.filename.lower().endswith((".owl", ".xml", ".rdf")):
         raise HTTPException(status_code=400, detail="仅支持 .owl / .xml / .rdf 文件")
 
@@ -48,6 +54,7 @@ async def import_owl(file: UploadFile = File(...), db: Session = Depends(get_db)
         ontology_iri=model.get("ontologyIri", "http://example.org/cost-ontology#"),
         version=model.get("version", "1.0.0"),
         ontology=model,
+        user=user,
     )
 
     class_count = sum(1 for n in model.get("nodes", []) if n.get("kind") == "class")

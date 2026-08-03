@@ -363,19 +363,19 @@ export default function ProjectsScreen({ onOpenProject }: ProjectsScreenProps) {
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-50">
-      {/* 顶栏 */}
+      {/* 顶栏（全宽布局，避免按钮挤压） */}
       <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-          <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-primary-600 p-2 text-white">
+        <div className="flex h-16 items-center justify-between gap-4 px-4 sm:px-6">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="shrink-0 rounded-lg bg-primary-600 p-2 text-white">
               <Boxes size={22} />
             </div>
-            <div>
-              <h1 className="text-lg font-bold text-slate-800">本体可视化编辑器</h1>
-              <p className="text-xs text-slate-400">通用 OWL 本体可视化编辑器 · 支持多领域建模</p>
+            <div className="min-w-0">
+              <h1 className="truncate text-lg font-bold text-slate-800">本体可视化编辑器</h1>
+              <p className="truncate text-xs text-slate-400">通用 OWL 本体可视化编辑器 · 支持多领域建模</p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
             {authUser && (
               <Button
                 variant="secondary"

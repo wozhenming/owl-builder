@@ -30,6 +30,9 @@ def migrate() -> None:
         folder_cols = [row[1] for row in conn.execute(text("PRAGMA table_info(folders)"))]
         if "user_id" not in folder_cols:
             conn.execute(text("ALTER TABLE folders ADD COLUMN user_id VARCHAR(64)"))
+        ai_cols = [row[1] for row in conn.execute(text("PRAGMA table_info(ai_settings)"))]
+        if "thinking" not in ai_cols:
+            conn.execute(text("ALTER TABLE ai_settings ADD COLUMN thinking BOOLEAN DEFAULT 0"))
         conn.commit()
 
 

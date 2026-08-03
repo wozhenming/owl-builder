@@ -158,8 +158,10 @@ export const apiClient = {
 
   // ---- AI 助手 ----
   getAiSettings: () =>
-    request<{ configured: boolean; provider: string; baseUrl: string; model: string; hasApiKey: boolean }>('/ai/settings'),
-  saveAiSettings: (data: { provider: string; baseUrl: string; apiKey: string; model: string }) =>
+    request<{ configured: boolean; provider: string; baseUrl: string; model: string; thinking: boolean; hasApiKey: boolean }>(
+      '/ai/settings',
+    ),
+  saveAiSettings: (data: { provider: string; baseUrl: string; apiKey: string; model: string; thinking: boolean }) =>
     request<{ configured: boolean; message: string }>('/ai/settings', {
       method: 'PUT',
       body: JSON.stringify(data),

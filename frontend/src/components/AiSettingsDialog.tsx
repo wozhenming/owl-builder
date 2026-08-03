@@ -28,6 +28,7 @@ export default function AiSettingsDialog({ open, onClose }: AiSettingsDialogProp
   const [baseUrl, setBaseUrl] = useState('')
   const [apiKey, setApiKey] = useState('')
   const [model, setModel] = useState('')
+  const [thinking, setThinking] = useState(false)
   const [hasApiKey, setHasApiKey] = useState(false)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -41,6 +42,7 @@ export default function AiSettingsDialog({ open, onClose }: AiSettingsDialogProp
         setProvider(s.provider || 'custom')
         setBaseUrl(s.baseUrl)
         setModel(s.model)
+        setThinking(s.thinking ?? false)
         setHasApiKey(s.hasApiKey)
         setApiKey('')
       })
@@ -73,6 +75,7 @@ export default function AiSettingsDialog({ open, onClose }: AiSettingsDialogProp
         baseUrl: baseUrl.trim(),
         apiKey: apiKey.trim(), // 留空时后端保持原 Key（见后端约定）
         model: model.trim(),
+        thinking,
       })
       showToast('大模型配置已保存', 'success')
       onClose()
@@ -122,6 +125,29 @@ export default function AiSettingsDialog({ open, onClose }: AiSettingsDialogProp
           onChange={(e) => setModel(e.target.value)}
           placeholder="如 gpt-4o-mini / deepseek-chat / qwen-plus"
         />
+
+        <label className="flex cursor-pointer items-center justify-between rounded-lg border border-slate-200 p-3">
+          <span>
+            <span className="block text-sm font-medium text-slate-800">深度思考</span>
+            <span className="block text-xs text-slate-500">
+              开启后模型会详细推理（更严谨但较慢）；关闭时快速执行、简要总结
+            </span>
+          </span>
+          <span
+            role="switch"
+            aria-checked={thinking}
+            onClick={() => setThinking((v) => !v)}
+            className={`relative h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors ${
+              thinking ? 'bg-primary-600' : 'bg-slate-300'
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${
+                thinking ? 'left-[22px]' : 'left-0.5'
+              }`}
+            />
+          </span>
+        </label>
 
         {loading && (
           <div className="flex items-center justify-center py-2 text-slate-400">

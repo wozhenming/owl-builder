@@ -30,6 +30,7 @@ class AiSettingsIn(BaseModel):
     base_url: str = Field(default="", max_length=300, validation_alias="baseUrl")
     api_key: str = Field(default="", max_length=2000, validation_alias="apiKey")
     model: str = Field(default="", max_length=100)
+    thinking: bool = Field(default=False)
 
 
 @router.get("/settings")
@@ -43,6 +44,7 @@ def get_settings(user: User | None = Depends(current_user_or_none), db: Session 
         "provider": setting.provider,
         "baseUrl": setting.base_url,
         "model": setting.model,
+        "thinking": setting.thinking,
         # apiKey 不回传明文，仅标记是否已设置
         "hasApiKey": bool(setting.api_key),
     }

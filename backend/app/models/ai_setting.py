@@ -18,4 +18,6 @@ class AiSetting(Base):
     base_url: Mapped[str] = mapped_column(String(300), default="")
     api_key: Mapped[str] = mapped_column(Text, default="")
     model: Mapped[str] = mapped_column(String(100), default="")
+    # 深度思考开关：开启时引导模型详细推理（较慢），关闭时快速回复
+    thinking: Mapped[bool] = mapped_column(default=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())

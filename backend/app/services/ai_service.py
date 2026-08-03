@@ -38,6 +38,7 @@ def save_setting(db: Session, user_id: str, data: dict) -> AiSetting:
     if data.get("api_key"):
         setting.api_key = data["api_key"].strip()
     setting.model = (data.get("model") or "").strip()
+    setting.thinking = bool(data.get("thinking", False))
     db.commit()
     db.refresh(setting)
     return setting
@@ -74,13 +75,16 @@ async def call_mcp_tool(name: str, args: dict, user: User) -> str:
 
 def _llm_chat(settings: AiSetting, messages: list[dict], tools: list[dict]) -> dict:
     url = settings.base_url.rstrip("/") + "/chat/completions"
-    payload = {
+    payload: dict = {
         "model": settings.model,
         "messages": messages,
         "tools": tools,
         "tool_choice": "auto",
         "temperature": 0.2,
     }
+    if settings.thinking:
+        # 深度思考：请求模型详细推理（OpenAI o 系列兼容字段，其他服务通常忽略）
+        payload["reasoning_effort"] = "high"
     resp = httpx.post(
         url,
         headers={"Authorization": f"Bearer {settings.api_key}"},
@@ -105,8 +109,16 @@ async def chat(
             "operations": [],
         }
 
+    system_prompt = SYSTEM_PROMPT
+    if settings.thinking:
+        system_prompt += (
+            "\n请进行深度思考：先分析需求、规划步骤，再调用工具执行，"
+            "最后给出详细的操作总结与后续建议。"
+        )
+    else:
+        system_prompt += "\n请简洁高效地完成任务，直接执行操作并简要总结。"
     messages: list[dict] = [
-        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "system", "content": system_prompt},
     ]
     if require_project:
         messages.append({

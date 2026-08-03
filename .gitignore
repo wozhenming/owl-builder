@@ -34,3 +34,4 @@ cost-ontology-editor/
 
 # 本地测试工具（不提交）
 test-tools/
+.mcp_token

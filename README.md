@@ -150,21 +150,23 @@ OWL 生成支持：`owl:Class`、`rdfs:subClassOf`、`rdfs:label`（中文）、
 
 本项目的编辑功能已封装为 MCP 服务，AI 助手（Claude Desktop、Cursor 等）可直接创建项目、增删改类与关系、导入导出 OWL。
 
+**令牌认证**：MCP 服务需要访问令牌。后端首次启动自动生成并写入 `backend/.mcp_token`（也可用环境变量 `COST_ONTOLOGY_MCP_TOKEN` 指定）。令牌已加入 .gitignore，不会入库。
+
 **两种连接方式：**
 
-1. **stdio**（推荐桌面客户端）：编辑 Claude Desktop 配置 `claude_desktop_config.json`：
+1. **stdio**（推荐桌面客户端）：编辑 Claude Desktop 配置 `claude_desktop_config.json`，args 中带令牌：
 ```json
 {
   "mcpServers": {
     "cost-ontology": {
       "command": "D:/GKTL/owl-builder/backend/.venv/Scripts/python.exe",
-      "args": ["-m", "app.mcp_server"],
+      "args": ["-m", "app.mcp_server", "--token", "粘贴 backend/.mcp_token 中的令牌"],
       "cwd": "D:/GKTL/owl-builder/backend"
     }
   }
 }
 ```
-2. **HTTP**：后端已挂载，端点 `http://localhost:8000/mcp`（streamable HTTP）。
+2. **HTTP**：后端已挂载，端点 `http://localhost:8000/mcp`（streamable HTTP），请求需携带请求头 `Authorization: Bearer <令牌>`（无令牌/错误令牌返回 401）。
 
 **提供的 14 个工具：** `list_projects`、`create_project`、`delete_project`、`get_ontology`、`add_class`、`update_class`、`delete_class`、`add_relation`、`delete_relation`、`add_datatype`、`list_templates`、`create_project_from_template`、`export_owl`、`import_owl`
 

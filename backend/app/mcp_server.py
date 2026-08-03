@@ -327,6 +327,21 @@ def import_owl(xml_text: str, name: str = "导入的本体") -> dict:
 if __name__ == "__main__":
     import sys
 
+    from .mcp_auth import get_mcp_token, verify_mcp_token
+
+    # 令牌校验：若已配置令牌（环境变量或 .mcp_token 文件），
+    # 必须通过 --token <token> 提供一致令牌才能启动
+    if "--token" in sys.argv:
+        idx = sys.argv.index("--token")
+        provided = sys.argv[idx + 1] if idx + 1 < len(sys.argv) else ""
+        if not verify_mcp_token(None, provided):
+            print("错误：MCP 令牌不匹配", file=sys.stderr)
+            sys.exit(1)
+    else:
+        configured = get_mcp_token()
+        if configured:
+            print("提示：已配置 MCP 令牌，请使用 --token <令牌> 启动", file=sys.stderr)
+
     # --http：streamable HTTP 模式（默认 127.0.0.1:8001）；否则 stdio 模式
     if "--http" in sys.argv:
         mcp.run(transport="http", host="127.0.0.1", port=8001)

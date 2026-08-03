@@ -2,8 +2,9 @@
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
 from .api import admin as admin_api
@@ -13,6 +14,7 @@ from .api import folder as folder_api
 from .api import project as project_api
 from .api import template as template_api
 from .database import Base, engine
+from .mcp_auth import ensure_mcp_token, get_mcp_token, verify_mcp_token
 from .mcp_server import mcp as mcp_server
 
 
@@ -30,15 +32,15 @@ def migrate() -> None:
         conn.commit()
 
 
-# MCP（Model Context Protocol）服务的 ASGI 应用（挂载于 /mcp）
-mcp_app = mcp_server.http_app(path="/")
-
-
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     # 启动时创建数据表并执行迁移
     Base.metadata.create_all(bind=engine)
     migrate()
+    # 确保 MCP 令牌存在（自动生成并写入 backend/.mcp_token）
+    if get_mcp_token() is None:
+        ensure_mcp_token()
+        print("[mcp] 已生成 MCP 访问令牌 -> backend/.mcp_token", flush=True)
     # MCP 会话管理器生命周期
     async with mcp_app.lifespan(_):
         yield
@@ -78,4 +80,14 @@ app.include_router(template_api.router)
 app.include_router(admin_api.router)
 
 # MCP（Model Context Protocol）服务挂载：http://localhost:8000/mcp
+mcp_app = mcp_server.http_app(path="/")
 app.mount("/mcp", mcp_app)
+
+
+@app.middleware("http")
+async def mcp_auth_middleware(request: Request, call_next):
+    """MCP 端点令牌认证：Authorization: Bearer <token>（未配置令牌时不启用）。"""
+    if request.url.path.startswith("/mcp") and request.method != "OPTIONS":
+        if not verify_mcp_token(request.headers.get("authorization")):
+            return JSONResponse(status_code=401, content={"detail": "无效的 MCP 令牌"})
+    return await call_next(request)

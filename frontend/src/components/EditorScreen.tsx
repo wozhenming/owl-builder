@@ -37,6 +37,11 @@ export default function EditorScreen({ projectId, onBack }: EditorScreenProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId])
 
+  // 卸载时清理弹窗状态，避免下次进入残留
+  useEffect(() => {
+    return () => useUiStore.getState().hideUnsavedDialog()
+  }, [])
+
   // 返回项目列表：有未保存修改时先询问
   const handleBack = useCallback(() => {
     if (isDirty()) {
@@ -59,8 +64,12 @@ export default function EditorScreen({ projectId, onBack }: EditorScreenProps) {
   }, [])
 
   const saveAndExit = useCallback(async () => {
-    await handle.save()
-    onBack()
+    const ui = useUiStore.getState()
+    // 无论成功与否都先关闭弹窗，避免下次进入残留
+    ui.hideUnsavedDialog()
+    const ok = await handle.save()
+    // 保存成功才退出；失败时留在编辑器（错误提示由 save 内部给出）
+    if (ok) onBack()
   }, [handle, onBack])
 
   return (

@@ -21,7 +21,8 @@ export interface ProjectHandle {
   createProject: (data: { name: string; description?: string; ontologyIri?: string }) => Promise<ProjectSummary>
   deleteProject: (id: string) => Promise<void>
   loadProject: (id: string) => Promise<void>
-  save: () => Promise<void>
+  /** 保存当前项目；返回是否保存成功 */
+  save: () => Promise<boolean>
   undo: () => void
   redo: () => void
   canUndo: boolean
@@ -130,9 +131,9 @@ export function useOntology(): ProjectHandle {
     const current = store.ontology
     if (!current.projectId) {
       useUiStore.getState().showToast('尚未关联项目，请从项目列表进入', 'error')
-      return
+      return false
     }
-    if (savingRef.current) return
+    if (savingRef.current) return false
     savingRef.current = true
     store.setBusy(true)
     try {
@@ -147,7 +148,7 @@ export function useOntology(): ProjectHandle {
           store.markSaved()
           setSummary((s) => (s ? { ...s, updatedAt: new Date().toISOString() } : s))
           useUiStore.getState().showToast('已保存到服务器', 'success')
-          return
+          return true
         } catch (e) {
           if (!(e instanceof ApiUnavailableError)) throw e
         }
@@ -156,8 +157,10 @@ export function useOntology(): ProjectHandle {
       localOntology.save(current.projectId, current, useOntologyStore.getState().layout)
       store.markSaved()
       useUiStore.getState().showToast('已保存到本地浏览器', 'success')
+      return true
     } catch (e) {
       useUiStore.getState().showToast(`保存失败：${e instanceof Error ? e.message : String(e)}`, 'error')
+      return false
     } finally {
       savingRef.current = false
       store.setBusy(false)

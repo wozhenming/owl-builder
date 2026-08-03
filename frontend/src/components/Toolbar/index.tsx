@@ -62,6 +62,7 @@ export default function Toolbar({
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [logOpen, setLogOpen] = useState(false)
+  const logCount = useOperationLogStore((s) => s.logs.length)
 
   // Ctrl+O 导入文件
   useEffect(() => {
@@ -270,9 +271,9 @@ export default function Toolbar({
         title="历史操作"
       >
         历史操作
-        {useOperationLogStore((s) => s.logs.length) > 0 && (
+        {logCount > 0 && (
           <span className="ml-0.5 rounded bg-primary-100 px-1 text-[10px] font-medium text-primary-700">
-            {useOperationLogStore((s) => s.logs.length)}
+            {logCount}
           </span>
         )}
       </Button>

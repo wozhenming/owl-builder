@@ -2,8 +2,10 @@ import { useEffect, useMemo, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { BookOpen, Maximize2, Minimize2, X } from 'lucide-react'
+import { useAuthStore } from '../../store/authStore'
 import { useUiStore } from '../../store/uiStore'
 import docsContent from '../../../docs/usage.md?raw'
+import adminContent from '../../../docs/admin.md?raw'
 
 /** 文档引用的截图资源（markdown 中写文件名即可，如 ![编辑器](editor.png)） */
 const docImages = import.meta.glob('../../../docs/images/*.{png,jpg,jpeg}', {
@@ -23,14 +25,20 @@ function extractHeadings(raw: string): string[] {
     .map((line) => line.replace(/^##\s+/, '').trim())
 }
 
-/** 使用文档对话框：左侧目录 + 右侧内容 */
+/** 使用文档对话框：左侧目录 + 右侧内容（管理员可见更多章节） */
 export default function DocsDialog() {
   const open = useUiStore((s) => s.docsOpen)
   const closeDocs = useUiStore((s) => s.closeDocs)
+  const isAdmin = useAuthStore((s) => s.user?.isAdmin ?? false)
   const [active, setActive] = useState<string | null>(null)
   const [fullscreen, setFullscreen] = useState(false)
 
-  const headings = useMemo(() => extractHeadings(docsContent), [])
+  // 管理员：基础文档 + 管理后台章节；普通用户/匿名：基础文档
+  const content = useMemo(
+    () => (isAdmin ? `${docsContent}\n\n${adminContent}` : docsContent),
+    [isAdmin],
+  )
+  const headings = useMemo(() => extractHeadings(content), [content])
 
   // Esc 关闭
   useEffect(() => {
@@ -62,6 +70,11 @@ export default function DocsDialog() {
           <h3 className="flex items-center gap-2 text-base font-semibold text-slate-800">
             <BookOpen size={18} className="text-primary-600" />
             本体可视化编辑器 使用文档
+            {isAdmin && (
+              <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">
+                管理员版（含管理后台）
+              </span>
+            )}
           </h3>
           <div className="flex items-center gap-1">
             <button
@@ -163,7 +176,7 @@ export default function DocsDialog() {
                   ),
                 }}
               >
-                {docsContent}
+                {content}
               </ReactMarkdown>
             </div>
           </article>

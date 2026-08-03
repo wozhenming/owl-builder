@@ -163,13 +163,13 @@ export const apiClient = {
     }),
 
   // ---- 文件导入导出 ----
-  /** 上传 .owl 文件，由后端解析并创建项目 */
+  /** 上传 .owl 文件，由后端解析并创建项目（登录用户的导入归其所有） */
   importOwlFile: async (file: File): Promise<ImportResult> => {
     const form = new FormData()
     form.append('file', file)
     let res: Response
     try {
-      res = await fetch(`${BASE}/file/import`, { method: 'POST', body: form })
+      res = await fetch(`${BASE}/file/import`, { method: 'POST', body: form, headers: authHeaders() })
     } catch {
       throw new ApiUnavailableError()
     }
@@ -190,7 +190,7 @@ export const apiClient = {
   exportOwlFile: async (projectId: string): Promise<Blob> => {
     let res: Response
     try {
-      res = await fetch(`${BASE}/file/export/${projectId}`)
+      res = await fetch(`${BASE}/file/export/${projectId}`, { headers: authHeaders() })
     } catch {
       throw new ApiUnavailableError()
     }

@@ -70,11 +70,19 @@ async def import_owl(
 
 
 @router.get("/export/{project_id}")
-def export_owl(project_id: str, db: Session = Depends(get_db)):
-    """导出项目为标准 OWL RDF/XML 文件下载。"""
+def export_owl(
+    project_id: str,
+    db: Session = Depends(get_db),
+    user: User | None = Depends(current_user_or_none),
+):
+    """导出项目为标准 OWL RDF/XML 文件下载（私有项目仅归属者可导出）。"""
     project = svc.get_project(db, project_id)
     if project is None:
         raise HTTPException(status_code=404, detail=f"项目 {project_id} 不存在")
+    if user is None and project.user_id is not None:
+        raise HTTPException(status_code=401, detail="请先登录")
+    if user is not None and project.user_id is not None and project.user_id != user.id:
+        raise HTTPException(status_code=403, detail="无权导出他人的项目")
 
     model = svc.get_ontology(db, project_id)
     xml_text = generate_owl(model)

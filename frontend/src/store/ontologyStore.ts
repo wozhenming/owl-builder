@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { useOperationLogStore } from './operationLogStore'
 import type {
   ClassNode,
   DatatypeNode,
@@ -254,12 +255,33 @@ export function suppressHistoryPush(fn: () => void) {
   }
 }
 
-// 本体内容变化 -> 压入历史（快照包含当时的布局）
+// 本体内容变化 -> 压入历史（快照包含当时的布局）并记录操作日志
 useOntologyStore.subscribe((state, prevState) => {
   if (state.ontology !== prevState.ontology && !historySuppressed) {
+    const before = useHistoryStore.getState().past.length
     useHistoryStore.getState().push(snapshotFrom(prevState.ontology, prevState.layout))
+    const text = describeChange(prevState.ontology, state.ontology)
+    if (text) {
+      useOperationLogStore.getState().addLog('user', text, before)
+    }
   }
 })
+
+/** 用变更前后 diff 生成操作日志描述（节点/边增删） */
+function describeChange(prev: Ontology, next: Ontology): string | null {
+  const prevNodes = new Map(prev.nodes.map((n) => [n.id, n]))
+  const added = next.nodes.filter((n) => !prevNodes.has(n.id))
+  const removed = prev.nodes.filter((n) => !next.nodes.some((x) => x.id === n.id))
+  if (added.length) return `添加 ${added.map((n) => n.label || n.name).join('、')}`
+  if (removed.length) return `删除 ${removed.map((n) => n.label || n.name).join('、')}`
+
+  const prevEdges = new Map(prev.edges.map((e) => [e.id, e]))
+  const addedE = next.edges.filter((e) => !prevEdges.has(e.id))
+  const removedE = prev.edges.filter((e) => !next.edges.some((x) => x.id === e.id))
+  if (addedE.length) return `添加关系 ${addedE.map((e) => e.label || e.name || e.kind).join('、')}`
+  if (removedE.length) return `删除关系 ${removedE.map((e) => e.label || e.name || e.kind).join('、')}`
+  return null
+}
 
 // 布局变化（拖拽节点 / 自动排版）-> 同样压入历史，支持撤销重做
 useOntologyStore.subscribe((state, prevState) => {

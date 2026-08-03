@@ -143,6 +143,7 @@ export default function AiAssistantPanel({ projectId }: AiAssistantPanelProps) {
     setSending(true)
     // 记录「AI 操作前」快照：AI 修改后可 Ctrl+Z 撤回
     const store = useOntologyStore.getState()
+    const before = useHistoryStore.getState().past.length
     useHistoryStore.getState().push(snapshotFrom(store.ontology, store.layout))
     try {
       const res = await apiClient.aiChat(projectId, [...history, { role: 'user', content: text }], sessionId)
@@ -153,9 +154,13 @@ export default function AiAssistantPanel({ projectId }: AiAssistantPanelProps) {
       }
       setMessages((prev) => [...prev, assistantMsg])
       if (res.operations?.length) {
-        // 记录 AI 操作日志
+        // 记录 AI 操作日志（undoBefore 指向 AI 前快照）
         for (const op of res.operations) {
-          addLog('ai', `${toolLabel(op.tool)}${op.result?.slice(0, 40) ? `（${op.result.slice(0, 40)}）` : ''}`)
+          addLog(
+            'ai',
+            `${toolLabel(op.tool)}${op.result?.slice(0, 40) ? `（${op.result.slice(0, 40)}）` : ''}`,
+            before,
+          )
         }
         // 刷新画布：保留历史（可撤回 AI 操作）、标记未保存（可保存）
         void reloadProjectData(projectId, { resetHistory: false, markDirty: true })

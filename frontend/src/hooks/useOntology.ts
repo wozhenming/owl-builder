@@ -6,7 +6,6 @@ import { apiClient, ApiUnavailableError, isBackendAvailable } from '../services/
 import { localOntology, localProjects } from '../services/storageService'
 import { applySnapshot, snapshotFrom, useHistoryStore } from '../store/historyStore'
 import { createEmptyOntology, suppressHistoryPush, useOntologyStore } from '../store/ontologyStore'
-import { useOperationLogStore } from '../store/operationLogStore'
 import { useUiStore } from '../store/uiStore'
 
 /**
@@ -204,7 +203,6 @@ export function useOntology(): ProjectHandle {
 
   /** 撤销 / 重做（同时恢复节点内容与布局） */
   const undo = useCallback(() => {
-    useOperationLogStore.getState().suppressNextChange()
     const history = useHistoryStore.getState()
     const snap = history.undo()
     if (!snap) return
@@ -220,7 +218,6 @@ export function useOntology(): ProjectHandle {
   }, [])
 
   const redo = useCallback(() => {
-    useOperationLogStore.getState().suppressNextChange()
     const history = useHistoryStore.getState()
     const snap = history.redo()
     if (!snap) return

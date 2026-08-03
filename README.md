@@ -146,6 +146,28 @@ OWL 生成支持：`owl:Class`、`rdfs:subClassOf`、`rdfs:label`（中文）、
 解析支持：CURIE 前缀展开（`cost:类名` / `#类名`）、`owl:Thing` 等内置实体跳过、
 匿名限制提示跳过、GB18030 编码兼容。
 
+## 🤖 MCP（AI 助手集成）
+
+本项目的编辑功能已封装为 MCP 服务，AI 助手（Claude Desktop、Cursor 等）可直接创建项目、增删改类与关系、导入导出 OWL。
+
+**两种连接方式：**
+
+1. **stdio**（推荐桌面客户端）：编辑 Claude Desktop 配置 `claude_desktop_config.json`：
+```json
+{
+  "mcpServers": {
+    "cost-ontology": {
+      "command": "D:/GKTL/owl-builder/backend/.venv/Scripts/python.exe",
+      "args": ["-m", "app.mcp_server"],
+      "cwd": "D:/GKTL/owl-builder/backend"
+    }
+  }
+}
+```
+2. **HTTP**：后端已挂载，端点 `http://localhost:8000/mcp`（streamable HTTP）。
+
+**提供的 14 个工具：** `list_projects`、`create_project`、`delete_project`、`get_ontology`、`add_class`、`update_class`、`delete_class`、`add_relation`、`delete_relation`、`add_datatype`、`list_templates`、`create_project_from_template`、`export_owl`、`import_owl`
+
 ## 📝 说明
 
 - **登录**：首页可注册/登录账号，项目与文件夹按用户隔离（公共数据 + 自己的数据，退出登录后看不到他人的私有项目）；不登录也可匿名使用（仅可见公共数据）。密码经 pbkdf2 加盐哈希存储，第一个注册的用户接管历史数据并成为管理员

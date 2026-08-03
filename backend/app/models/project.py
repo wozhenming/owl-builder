@@ -17,6 +17,8 @@ class Project(Base):
     description: Mapped[str] = mapped_column(Text, default="")
     ontology_iri: Mapped[str] = mapped_column(String(500), default="http://example.org/cost-ontology#")
     version: Mapped[str] = mapped_column(String(50), default="1.0.0")
+    # 所属文件夹（可空）。列在启动时自动迁移（见 main.py migrate()）
+    folder_id: Mapped[str | None] = mapped_column(String(64), nullable=True, default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 

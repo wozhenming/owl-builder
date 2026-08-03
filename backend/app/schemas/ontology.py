@@ -11,12 +11,14 @@ class ProjectCreate(BaseModel):
     description: str = Field(default="", max_length=2000)
     ontology_iri: str = Field(default="http://example.org/cost-ontology#", max_length=500)
     version: str = Field(default="1.0.0", max_length=50)
+    folder_id: Optional[str] = Field(default=None, max_length=64, validation_alias="folderId")
 
 
 class ProjectUpdate(BaseModel):
     name: Optional[str] = Field(default=None, min_length=1, max_length=200)
     description: Optional[str] = Field(default=None, max_length=2000)
     ontology_iri: Optional[str] = Field(default=None, max_length=500)
+    folder_id: Optional[str] = Field(default=None, max_length=64, validation_alias="folderId")
     ontology: Optional[Dict[str, Any]] = None
 
 
@@ -24,8 +26,23 @@ class ProjectOut(BaseModel):
     id: str
     name: str
     description: str
+    folderId: Optional[str] = None
     createdAt: datetime
     updatedAt: datetime
+
+
+class FolderCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+
+
+class FolderUpdate(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+
+
+class FolderOut(BaseModel):
+    id: str
+    name: str
+    createdAt: datetime
 
 
 class ProjectDetail(ProjectOut):

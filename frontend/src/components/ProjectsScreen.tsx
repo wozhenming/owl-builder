@@ -5,8 +5,14 @@ import {
   Cloud,
   CloudOff,
   FileUp,
+  Folder as FolderIcon,
+  FolderInput,
   FolderOpen,
+  FolderPlus,
+  Inbox,
+  Layers,
   Loader2,
+  Pencil,
   Plus,
   Sparkles,
   Trash2,
@@ -15,45 +21,61 @@ import Button from './common/Button'
 import Input, { Textarea } from './common/Input'
 import Modal from './common/Modal'
 import { apiClient, ApiUnavailableError, isBackendAvailable } from '../services/apiClient'
-import { localOntology, localProjects } from '../services/storageService'
+import { localFolders, localOntology, localProjects } from '../services/storageService'
 import { parseOwlXml } from '../services/owlParser'
-import { SAMPLE_LAYOUT, SAMPLE_ONTOLOGY } from '../data/sampleOntology'
+import { type SampleTemplate } from '../data/sampleTemplates'
 import { useUiStore } from '../store/uiStore'
-import type { ProjectSummary } from '../types/api'
+import type { FolderSummary, ProjectSummary } from '../types/api'
 import type { NodeLayoutMap } from '../types/ontology'
 import { formatRelativeTime } from '../utils/formatters'
 import { validateProjectForm } from '../utils/validators'
 import { HELP } from '../utils/helpTexts'
+import TemplateDialog from './Dialogs/TemplateDialog'
 
 interface ProjectsScreenProps {
   onOpenProject: (id: string) => void
 }
 
-/** 项目管理页：项目列表 / 新建 / 导入 / 示例模板 */
+/** 分类过滤：全部 / 未分类 / 指定文件夹 */
+type Filter = { kind: 'all' } | { kind: 'uncategorized' } | { kind: 'folder'; id: string }
+
+/** 项目管理页：项目列表 / 文件夹分类 / 新建 / 导入 / 示例模板 */
 export default function ProjectsScreen({ onOpenProject }: ProjectsScreenProps) {
   const showToast = useUiStore((s) => s.showToast)
   const showConfirm = useUiStore((s) => s.showConfirm)
 
   const [projects, setProjects] = useState<ProjectSummary[]>([])
+  const [folders, setFolders] = useState<FolderSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [backendAvailable, setBackendAvailable] = useState<boolean | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
+  const [templateOpen, setTemplateOpen] = useState(false)
   const [creating, setCreating] = useState(false)
   const [newName, setNewName] = useState('')
   const [newDesc, setNewDesc] = useState('')
   const [newIri, setNewIri] = useState('http://example.org/cost-ontology#')
+  const [filter, setFilter] = useState<Filter>({ kind: 'all' })
+  // 文件夹编辑对话框
+  const [folderDialog, setFolderDialog] = useState<{ mode: 'create' } | { mode: 'rename'; id: string; name: string } | null>(null)
+  const [folderName, setFolderName] = useState('')
+  // 移动项目对话框
+  const [moveTarget, setMoveTarget] = useState<ProjectSummary | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const refresh = async (useBackend: boolean) => {
     setLoading(true)
     try {
       if (useBackend) {
-        setProjects(await apiClient.listProjects())
+        const [p, f] = await Promise.all([apiClient.listProjects(), apiClient.listFolders()])
+        setProjects(p)
+        setFolders(f)
       } else {
         setProjects(localProjects.list())
+        setFolders(localFolders.list())
       }
     } catch {
       setProjects(localProjects.list())
+      setFolders(localFolders.list())
     } finally {
       setLoading(false)
     }
@@ -66,7 +88,8 @@ export default function ProjectsScreen({ onOpenProject }: ProjectsScreenProps) {
     })
   }, [])
 
-  const createProject = async () => {
+  // ---- 项目操作 ----
+  const createProject = async (folderId?: string | null) => {
     const v = validateProjectForm({ name: newName, description: newDesc, ontologyIri: newIri })
     if (!v.ok) {
       showToast(v.message ?? '校验失败', 'error')
@@ -76,9 +99,14 @@ export default function ProjectsScreen({ onOpenProject }: ProjectsScreenProps) {
     try {
       let project: ProjectSummary
       if (backendAvailable) {
-        project = await apiClient.createProject({ name: newName.trim(), description: newDesc.trim(), ontologyIri: newIri.trim() })
+        project = await apiClient.createProject({
+          name: newName.trim(),
+          description: newDesc.trim(),
+          ontologyIri: newIri.trim(),
+          folderId,
+        })
       } else {
-        project = localProjects.create({ name: newName.trim(), description: newDesc.trim() })
+        project = localProjects.create({ name: newName.trim(), description: newDesc.trim(), folderId })
       }
       showToast(`已创建项目「${project.name}」`, 'success')
       setCreateOpen(false)
@@ -113,23 +141,107 @@ export default function ProjectsScreen({ onOpenProject }: ProjectsScreenProps) {
     )
   }
 
-  /** 使用示例模板：创建项目并载入示例本体 */
-  const useSample = async () => {
+  /** 移动项目到文件夹（null = 未分类） */
+  const moveProject = async (project: ProjectSummary, folderId: string | null) => {
+    try {
+      if (backendAvailable) {
+        await apiClient.updateProject(project.id, { folderId })
+      } else {
+        localProjects.update(project.id, { folderId })
+      }
+      showToast(`已移动到${folderId ? '文件夹' : '未分类'}`, 'success')
+      setMoveTarget(null)
+      void refresh(backendAvailable ?? false)
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : '移动失败', 'error')
+    }
+  }
+
+  // ---- 文件夹操作 ----
+  const createFolder = async () => {
+    const name = folderName.trim()
+    if (!name) {
+      showToast('文件夹名称不能为空', 'error')
+      return
+    }
+    try {
+      if (backendAvailable) {
+        await apiClient.createFolder({ name })
+      } else {
+        localFolders.create(name)
+      }
+      showToast(`已创建文件夹「${name}」`, 'success')
+      setFolderDialog(null)
+      setFolderName('')
+      void refresh(backendAvailable ?? false)
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : '创建失败', 'error')
+    }
+  }
+
+  const renameFolder = async () => {
+    if (!folderDialog || folderDialog.mode !== 'rename') return
+    const name = folderName.trim()
+    if (!name) {
+      showToast('文件夹名称不能为空', 'error')
+      return
+    }
+    try {
+      if (backendAvailable) {
+        await apiClient.renameFolder(folderDialog.id, { name })
+      } else {
+        localFolders.rename(folderDialog.id, name)
+      }
+      showToast('已重命名', 'success')
+      setFolderDialog(null)
+      void refresh(backendAvailable ?? false)
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : '重命名失败', 'error')
+    }
+  }
+
+  const deleteFolder = (folder: FolderSummary) => {
+    showConfirm(
+      '删除文件夹',
+      `确定删除文件夹「${folder.name}」吗？其中的项目不会被删除，将变为「未分类」。`,
+      async () => {
+        try {
+          if (backendAvailable) {
+            await apiClient.deleteFolder(folder.id)
+          } else {
+            localFolders.remove(folder.id)
+          }
+          showToast('文件夹已删除', 'success')
+          if (filter.kind === 'folder' && filter.id === folder.id) setFilter({ kind: 'all' })
+          void refresh(backendAvailable ?? false)
+        } catch (e) {
+          showToast(e instanceof Error ? e.message : '删除失败', 'error')
+        }
+      },
+    )
+  }
+
+  // ---- 示例模板 ----
+  const useTemplate = async (template: SampleTemplate) => {
+    setTemplateOpen(false)
     setCreating(true)
     try {
       let project: ProjectSummary
       if (backendAvailable) {
         project = await apiClient.createProject({
-          name: SAMPLE_ONTOLOGY.name,
-          description: SAMPLE_ONTOLOGY.description,
-          ontologyIri: SAMPLE_ONTOLOGY.ontologyIri,
+          name: template.ontology.name,
+          description: template.ontology.description,
+          ontologyIri: template.ontology.ontologyIri,
         })
-        await apiClient.saveOntology(project.id, SAMPLE_ONTOLOGY as unknown as Record<string, unknown>)
+        await apiClient.saveOntology(
+          project.id,
+          { ...template.ontology, projectId: project.id } as unknown as Record<string, unknown>,
+        )
       } else {
-        project = localProjects.create({ name: SAMPLE_ONTOLOGY.name, description: SAMPLE_ONTOLOGY.description })
-        localOntology.save(project.id, SAMPLE_ONTOLOGY, SAMPLE_LAYOUT)
+        project = localProjects.create({ name: template.ontology.name, description: template.ontology.description })
+        localOntology.save(project.id, template.ontology, template.layout)
       }
-      showToast('已创建示例项目', 'success')
+      showToast(`已从「${template.domain}」模板创建项目`, 'success')
       onOpenProject(project.id)
     } catch (e) {
       showToast(e instanceof Error ? e.message : '创建示例失败', 'error')
@@ -152,7 +264,6 @@ export default function ProjectsScreen({ onOpenProject }: ProjectsScreenProps) {
           setBackendAvailable(false)
         }
       }
-      // 本地解析导入
       const text = await file.text()
       const result = parseOwlXml(text, file.name.replace(/\.owl$/i, ''))
       const project = localProjects.create({ name: result.ontology.name, description: '通过本地导入 .owl 文件创建' })
@@ -174,18 +285,28 @@ export default function ProjectsScreen({ onOpenProject }: ProjectsScreenProps) {
     }
   }
 
+  // ---- 过滤与统计 ----
+  const visibleProjects = projects.filter((p) => {
+    if (filter.kind === 'all') return true
+    if (filter.kind === 'uncategorized') return !p.folderId
+    return p.folderId === filter.id
+  })
+  const countIn = (folderId: string | null) =>
+    projects.filter((p) => (folderId ? p.folderId === folderId : !p.folderId)).length
+  const folderNameOf = (id?: string | null) => folders.find((f) => f.id === id)?.name
+
   return (
     <div className="flex min-h-screen flex-col bg-slate-50">
       {/* 顶栏 */}
       <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-6">
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
           <div className="flex items-center gap-3">
             <div className="rounded-lg bg-primary-600 p-2 text-white">
               <Boxes size={22} />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-slate-800">CostOntology Editor</h1>
-              <p className="text-xs text-slate-400">公路工程造价本体可视化编辑器</p>
+              <h1 className="text-lg font-bold text-slate-800">本体可视化编辑器</h1>
+              <p className="text-xs text-slate-400">通用 OWL 本体可视化编辑器 · 支持多领域建模</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -219,73 +340,193 @@ export default function ProjectsScreen({ onOpenProject }: ProjectsScreenProps) {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-8">
-        <div className="mb-6 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-slate-700">我的本体项目</h2>
-          <div className="flex gap-2">
-            <Button variant="secondary" icon={<Sparkles size={15} />} onClick={() => void useSample()} disabled={creating}>
-              使用示例模板
-            </Button>
-            <Button variant="primary" icon={<Plus size={15} />} onClick={() => setCreateOpen(true)}>
-              新建项目
-            </Button>
+      <main className="mx-auto flex w-full max-w-6xl flex-1 gap-6 px-6 py-6">
+        {/* 左侧文件夹栏 */}
+        <aside className="w-56 shrink-0">
+          <div className="flex items-center justify-between px-1">
+            <p className="text-xs font-semibold text-slate-400">项目分类</p>
+            <button
+              onClick={() => {
+                setFolderName('')
+                setFolderDialog({ mode: 'create' })
+              }}
+              className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-primary-600"
+              title="新建文件夹"
+            >
+              <FolderPlus size={15} />
+            </button>
           </div>
-        </div>
+          <div className="mt-2 space-y-0.5">
+            <button
+              onClick={() => setFilter({ kind: 'all' })}
+              className={`flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-sm transition-colors ${
+                filter.kind === 'all' ? 'bg-primary-50 font-medium text-primary-700' : 'text-slate-600 hover:bg-white'
+              }`}
+            >
+              <Layers size={15} />
+              <span className="flex-1 text-left">全部项目</span>
+              <span className="text-xs text-slate-400">{projects.length}</span>
+            </button>
+            <button
+              onClick={() => setFilter({ kind: 'uncategorized' })}
+              className={`flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-sm transition-colors ${
+                filter.kind === 'uncategorized'
+                  ? 'bg-primary-50 font-medium text-primary-700'
+                  : 'text-slate-600 hover:bg-white'
+              }`}
+            >
+              <Inbox size={15} />
+              <span className="flex-1 text-left">未分类</span>
+              <span className="text-xs text-slate-400">{countIn(null)}</span>
+            </button>
 
-        {loading ? (
-          <div className="flex items-center justify-center py-24 text-slate-400">
-            <Loader2 className="mr-2 animate-spin" size={18} /> 加载中…
-          </div>
-        ) : projects.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-slate-300 bg-white py-20 text-center">
-            <FolderOpen size={40} strokeWidth={1.2} className="mx-auto text-slate-300" />
-            <p className="mt-4 text-sm text-slate-500">还没有项目</p>
-            <p className="mt-1 text-xs text-slate-400">
-              新建一个空项目开始建模，或点击「使用示例模板」快速查看造价本体结构
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {projects.map((p) => (
+            <div className="mt-3 border-t border-slate-200 pt-2" />
+            {folders.length === 0 && (
+              <p className="px-2.5 py-1 text-xs text-slate-300">暂无文件夹，点击右上角 + 新建</p>
+            )}
+            {folders.map((f) => (
               <div
-                key={p.id}
-                className="group cursor-pointer rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:border-primary-300 hover:shadow-md"
-                onClick={() => onOpenProject(p.id)}
+                key={f.id}
+                className={`group flex items-center gap-1 rounded-md transition-colors ${
+                  filter.kind === 'folder' && filter.id === f.id
+                    ? 'bg-primary-50 text-primary-700'
+                    : 'text-slate-600 hover:bg-white'
+                }`}
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <h3 className="truncate text-base font-semibold text-slate-800" title={p.name}>
-                      {p.name}
-                    </h3>
-                    <p className="mt-1 line-clamp-2 min-h-[2rem] text-xs text-slate-400">
-                      {p.description || '（暂无描述）'}
-                    </p>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="shrink-0 opacity-0 group-hover:opacity-100"
-                    icon={<Trash2 size={14} className="text-red-500" />}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      deleteProject(p)
+                <button
+                  onClick={() => setFilter({ kind: 'folder', id: f.id })}
+                  className={`flex min-w-0 flex-1 items-center gap-2 rounded-md px-2.5 py-2 text-sm ${
+                    filter.kind === 'folder' && filter.id === f.id ? 'font-medium' : ''
+                  }`}
+                >
+                  <FolderIcon size={15} className="shrink-0" />
+                  <span className="flex-1 truncate text-left" title={f.name}>
+                    {f.name}
+                  </span>
+                  <span className="text-xs text-slate-400">{countIn(f.id)}</span>
+                </button>
+                <span className="flex shrink-0 items-center opacity-0 transition-opacity group-hover:opacity-100">
+                  <button
+                    onClick={() => {
+                      setFolderName(f.name)
+                      setFolderDialog({ mode: 'rename', id: f.id, name: f.name })
                     }}
-                    title="删除项目"
-                  />
-                </div>
-                <div className="mt-3 flex items-center justify-between text-xs text-slate-400">
-                  <span>更新于 {formatRelativeTime(p.updatedAt)}</span>
-                  <span className="font-medium text-primary-600">打开 →</span>
-                </div>
+                    className="rounded p-1 text-slate-400 hover:text-primary-600"
+                    title="重命名"
+                  >
+                    <Pencil size={13} />
+                  </button>
+                  <button
+                    onClick={() => deleteFolder(f)}
+                    className="rounded p-1 text-slate-400 hover:text-red-500"
+                    title="删除文件夹"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </span>
               </div>
             ))}
           </div>
-        )}
+        </aside>
+
+        {/* 右侧项目列表 */}
+        <section className="min-w-0 flex-1">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="flex items-center gap-2 text-base font-semibold text-slate-700">
+              {filter.kind === 'all' && '我的本体项目'}
+              {filter.kind === 'uncategorized' && '未分类项目'}
+              {filter.kind === 'folder' && (
+                <>
+                  <FolderOpen size={16} className="text-primary-600" />
+                  {folderNameOf(filter.id) ?? '文件夹'}
+                </>
+              )}
+            </h2>
+            <div className="flex gap-2">
+              <Button variant="secondary" icon={<Sparkles size={15} />} onClick={() => setTemplateOpen(true)}>
+                使用示例模板
+              </Button>
+              <Button variant="primary" icon={<Plus size={15} />} onClick={() => setCreateOpen(true)}>
+                新建项目
+              </Button>
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="flex items-center justify-center py-24 text-slate-400">
+              <Loader2 className="mr-2 animate-spin" size={18} /> 加载中…
+            </div>
+          ) : visibleProjects.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-slate-300 bg-white py-20 text-center">
+              <FolderOpen size={40} strokeWidth={1.2} className="mx-auto text-slate-300" />
+              <p className="mt-4 text-sm text-slate-500">这里还没有项目</p>
+              <p className="mt-1 text-xs text-slate-400">
+                新建一个空项目开始建模，或点击「使用示例模板」从多领域模板起步
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {visibleProjects.map((p) => (
+                <div
+                  key={p.id}
+                  className="group cursor-pointer rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:border-primary-300 hover:shadow-md"
+                  onClick={() => onOpenProject(p.id)}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h3 className="truncate text-base font-semibold text-slate-800" title={p.name}>
+                        {p.name}
+                      </h3>
+                      <p className="mt-1 line-clamp-2 min-h-[2rem] text-xs text-slate-400">
+                        {p.description || '（暂无描述）'}
+                      </p>
+                    </div>
+                    <span className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setMoveTarget(p)
+                        }}
+                        className="rounded p-1 text-slate-400 hover:text-primary-600"
+                        title="移动到文件夹"
+                      >
+                        <FolderInput size={14} />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          deleteProject(p)
+                        }}
+                        className="rounded p-1 text-slate-400 hover:text-red-500"
+                        title="删除项目"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </span>
+                  </div>
+                  <div className="mt-3 flex items-center justify-between text-xs text-slate-400">
+                    {p.folderId && filter.kind === 'all' ? (
+                      <span className="flex items-center gap-1 truncate text-slate-400">
+                        <FolderIcon size={11} /> {folderNameOf(p.folderId)}
+                      </span>
+                    ) : (
+                      <span>更新于 {formatRelativeTime(p.updatedAt)}</span>
+                    )}
+                    <span className="ml-2 shrink-0 font-medium text-primary-600">打开 →</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
       </main>
 
       <footer className="border-t border-slate-200 bg-white py-4 text-center text-xs text-slate-400">
-        CostOntology Editor · 支持 OWL RDF/XML 导入导出 · 公路工程造价领域本体建模工具
+        本体可视化编辑器 · 支持 OWL RDF/XML 导入导出 · 多领域本体建模工具
       </footer>
+
+      {/* 示例模板选择对话框 */}
+      <TemplateDialog open={templateOpen} onClose={() => setTemplateOpen(false)} onPick={(t) => void useTemplate(t)} />
 
       {/* 新建项目对话框 */}
       <Modal title="新建本体项目" open={createOpen} onClose={() => setCreateOpen(false)}>
@@ -296,7 +537,7 @@ export default function ProjectsScreen({ onOpenProject }: ProjectsScreenProps) {
             required
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
-            placeholder="如：某某公路工程造价本体"
+            placeholder="如：某高速公路造价本体"
           />
           <Textarea
             label="项目描述"
@@ -317,10 +558,72 @@ export default function ProjectsScreen({ onOpenProject }: ProjectsScreenProps) {
             <Button variant="secondary" onClick={() => setCreateOpen(false)}>
               取消
             </Button>
-            <Button variant="primary" icon={creating ? <Loader2 size={15} className="animate-spin" /> : <Plus size={15} />} onClick={() => void createProject()} disabled={creating}>
+            <Button
+              variant="primary"
+              icon={creating ? <Loader2 size={15} className="animate-spin" /> : <Plus size={15} />}
+              onClick={() => void createProject()}
+              disabled={creating}
+            >
               创建并打开
             </Button>
           </div>
+        </div>
+      </Modal>
+
+      {/* 文件夹 创建/重命名 对话框 */}
+      <Modal
+        title={folderDialog?.mode === 'rename' ? '重命名文件夹' : '新建文件夹'}
+        open={folderDialog !== null}
+        onClose={() => setFolderDialog(null)}
+      >
+        <div className="space-y-4">
+          <Input
+            label="文件夹名称"
+            required
+            value={folderName}
+            onChange={(e) => setFolderName(e.target.value)}
+            placeholder="如：医疗健康领域、进行中"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') void (folderDialog?.mode === 'rename' ? renameFolder() : createFolder())
+            }}
+          />
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setFolderDialog(null)}>
+              取消
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => void (folderDialog?.mode === 'rename' ? renameFolder() : createFolder())}
+            >
+              {folderDialog?.mode === 'rename' ? '保存' : '创建'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* 移动项目对话框 */}
+      <Modal title={`移动「${moveTarget?.name ?? ''}」`} open={moveTarget !== null} onClose={() => setMoveTarget(null)}>
+        <div className="space-y-1">
+          <button
+            onClick={() => moveTarget && void moveProject(moveTarget, null)}
+            className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+          >
+            <Inbox size={15} className="text-slate-400" /> 未分类
+            <span className="ml-auto text-xs text-slate-400">{countIn(null)}</span>
+          </button>
+          {folders.map((f) => (
+            <button
+              key={f.id}
+              onClick={() => moveTarget && void moveProject(moveTarget, f.id)}
+              className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+            >
+              <FolderIcon size={15} className="text-slate-400" /> {f.name}
+              <span className="ml-auto text-xs text-slate-400">{countIn(f.id)}</span>
+            </button>
+          ))}
+          {folders.length === 0 && (
+            <p className="px-3 py-2 text-xs text-slate-400">还没有文件夹，可先在左侧新建。</p>
+          )}
         </div>
       </Modal>
     </div>

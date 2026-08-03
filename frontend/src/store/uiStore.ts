@@ -33,6 +33,8 @@ interface UiState {
   docsOpen: boolean
   /** 画布右键菜单 */
   contextMenu: ContextMenuState | null
+  /** 未保存退出确认框 */
+  unsavedDialog: boolean
   /** 对话框可见状态 */
   dialogs: {
     addClass: boolean
@@ -63,6 +65,8 @@ interface UiState {
   closeDocs: () => void
   openContextMenu: (menu: ContextMenuState) => void
   closeContextMenu: () => void
+  showUnsavedDialog: () => void
+  hideUnsavedDialog: () => void
   showConfirm: (title: string, message: string, onConfirm: () => void) => void
   hideConfirm: () => void
   showToast: (message: string, kind?: 'success' | 'error' | 'info') => void
@@ -79,6 +83,7 @@ export const useUiStore = create<UiState>((set) => ({
   layoutRequestId: 0,
   docsOpen: false,
   contextMenu: null,
+  unsavedDialog: false,
   dialogs: {
     addClass: false,
     addProperty: false,
@@ -111,6 +116,8 @@ export const useUiStore = create<UiState>((set) => ({
   closeDocs: () => set({ docsOpen: false }),
   openContextMenu: (menu) => set({ contextMenu: menu }),
   closeContextMenu: () => set({ contextMenu: null }),
+  showUnsavedDialog: () => set({ unsavedDialog: true }),
+  hideUnsavedDialog: () => set({ unsavedDialog: false }),
   showConfirm: (title, message, onConfirm) =>
     set((s) => ({
       confirmState: { title, message, onConfirm },

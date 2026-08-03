@@ -3,20 +3,28 @@
  * 项目列表与本体数据保存在浏览器 localStorage 中。
  */
 
-import type { ProjectSummary } from '../types/api'
+import type { FolderSummary, ProjectSummary } from '../types/api'
 import type { NodeLayoutMap, Ontology } from '../types/ontology'
 import { generateId } from '../utils/helpers'
 
 const LS_PROJECTS_KEY = 'cost-ontology:projects'
 const LS_ONTOLOGY_PREFIX = 'cost-ontology:project:'
 const LS_LAYOUT_PREFIX = 'cost-ontology:layout:'
+const LS_FOLDERS_KEY = 'cost-ontology:folders'
 
 interface LocalProjectMeta {
   id: string
   name: string
   description: string
+  folderId?: string | null
   createdAt: number
   updatedAt: number
+}
+
+interface LocalFolderMeta {
+  id: string
+  name: string
+  createdAt: number
 }
 
 function readProjects(): LocalProjectMeta[] {
@@ -32,12 +40,26 @@ function writeProjects(projects: LocalProjectMeta[]) {
   localStorage.setItem(LS_PROJECTS_KEY, JSON.stringify(projects))
 }
 
+function readFolders(): LocalFolderMeta[] {
+  try {
+    const raw = localStorage.getItem(LS_FOLDERS_KEY)
+    return raw ? (JSON.parse(raw) as LocalFolderMeta[]) : []
+  } catch {
+    return []
+  }
+}
+
+function writeFolders(folders: LocalFolderMeta[]) {
+  localStorage.setItem(LS_FOLDERS_KEY, JSON.stringify(folders))
+}
+
 /** 同步项目摘要到后端结构 */
 function toSummary(p: LocalProjectMeta): ProjectSummary {
   return {
     id: p.id,
     name: p.name,
     description: p.description,
+    folderId: p.folderId ?? null,
     createdAt: new Date(p.createdAt).toISOString(),
     updatedAt: new Date(p.updatedAt).toISOString(),
   }
@@ -48,12 +70,13 @@ export const localProjects = {
     return readProjects().map(toSummary)
   },
 
-  create(data: { name: string; description?: string }): ProjectSummary {
+  create(data: { name: string; description?: string; folderId?: string | null }): ProjectSummary {
     const now = Date.now()
     const meta: LocalProjectMeta = {
       id: generateId('proj'),
       name: data.name,
       description: data.description ?? '',
+      folderId: data.folderId ?? null,
       createdAt: now,
       updatedAt: now,
     }
@@ -61,7 +84,7 @@ export const localProjects = {
     return toSummary(meta)
   },
 
-  update(id: string, patch: { name?: string; description?: string }) {
+  update(id: string, patch: { name?: string; description?: string; folderId?: string | null }) {
     const projects = readProjects().map((p) =>
       p.id === id ? { ...p, ...patch, updatedAt: Date.now() } : p,
     )
@@ -77,6 +100,32 @@ export const localProjects = {
   get(id: string): ProjectSummary | null {
     const p = readProjects().find((x) => x.id === id)
     return p ? toSummary(p) : null
+  },
+}
+
+export const localFolders = {
+  list(): FolderSummary[] {
+    return readFolders().map((f) => ({
+      id: f.id,
+      name: f.name,
+      createdAt: new Date(f.createdAt).toISOString(),
+    }))
+  },
+
+  create(name: string): FolderSummary {
+    const folder: LocalFolderMeta = { id: generateId('fld'), name, createdAt: Date.now() }
+    writeFolders([...readFolders(), folder])
+    return { id: folder.id, name: folder.name, createdAt: new Date(folder.createdAt).toISOString() }
+  },
+
+  rename(id: string, name: string) {
+    writeFolders(readFolders().map((f) => (f.id === id ? { ...f, name } : f)))
+  },
+
+  remove(id: string) {
+    writeFolders(readFolders().filter((f) => f.id !== id))
+    // 文件夹中的项目置为未分类
+    writeProjects(readProjects().map((p) => (p.folderId === id ? { ...p, folderId: null } : p)))
   },
 }
 

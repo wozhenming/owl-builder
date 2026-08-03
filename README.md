@@ -1,7 +1,7 @@
-# CostOntology Editor（造价本体可视化编辑器）
+# 本体可视化编辑器（Ontology Visual Editor）
 
-基于 Web 的可视化 **OWL 本体编辑器**，专为公路工程造价领域设计。
-让造价工程师、预算编制人员无需手写 XML，即可通过图形化界面创建、编辑和查看 OWL 本体。
+基于 Web 的可视化 **OWL 本体编辑器**，通用多领域：
+无需手写 XML，通过图形化界面即可创建、编辑和查看 OWL 本体。
 
 ![Tech](<https://img.shields.io/badge/前端-React%20%2B%20TypeScript%20%2B%20Tailwind-blue>)
 ![Tech](<https://img.shields.io/badge/后端-FastAPI%20%2B%20SQLite-green>)

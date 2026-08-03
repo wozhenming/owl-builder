@@ -1,11 +1,11 @@
-"""本体数据服务：项目与本体的 CRUD 逻辑。"""
+"""本体数据服务：项目/文件夹/本体的 CRUD 逻辑。"""
 
 import json
 from typing import Any, Dict, Optional
 
 from sqlalchemy.orm import Session
 
-from ..models import OntologyDocument, Project
+from ..models import Folder, OntologyDocument, Project
 
 
 def get_project(db: Session, project_id: str) -> Optional[Project]:
@@ -56,9 +56,41 @@ def update_project(db: Session, project: Project, patch: Dict[str, Any]) -> Proj
         project.ontology_iri = patch["ontology_iri"]
     if "version" in patch:
         project.version = patch["version"]
+    if "folder_id" in patch:
+        project.folder_id = patch["folder_id"] or None
     db.commit()
     db.refresh(project)
     return project
+
+
+# ---------------------------------------------------------------------------
+# 文件夹
+# ---------------------------------------------------------------------------
+
+def list_folders(db: Session) -> list[Folder]:
+    return db.query(Folder).order_by(Folder.created_at.asc()).all()
+
+
+def create_folder(db: Session, name: str) -> Folder:
+    folder = Folder(name=name)
+    db.add(folder)
+    db.commit()
+    db.refresh(folder)
+    return folder
+
+
+def rename_folder(db: Session, folder: Folder, name: str) -> Folder:
+    folder.name = name
+    db.commit()
+    db.refresh(folder)
+    return folder
+
+
+def delete_folder(db: Session, folder: Folder) -> None:
+    """删除文件夹：其中的项目 folder_id 置空（不删除项目）。"""
+    db.query(Project).filter(Project.folder_id == folder.id).update({"folder_id": None})
+    db.delete(folder)
+    db.commit()
 
 
 def save_ontology(db: Session, project: Project, ontology: Dict[str, Any]) -> None:

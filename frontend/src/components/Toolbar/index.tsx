@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import {
   ArrowLeft,
   BookOpen,
@@ -58,6 +58,19 @@ export default function Toolbar({
   const showConfirm = useUiStore((s) => s.showConfirm)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Ctrl+O 导入文件
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 'o') return
+      const t = e.target as HTMLElement | null
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
+      e.preventDefault()
+      fileInputRef.current?.click()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   /** 导入 .owl 或 .json 备份（覆盖当前内容） */
   const handleImportFile = async (file: File) => {
@@ -219,6 +232,7 @@ export default function Toolbar({
         type="file"
         accept=".owl,.xml,.rdf,.json"
         className="hidden"
+        id="toolbar-file-input"
         onChange={(e) => {
           const file = e.target.files?.[0]
           if (file) void handleImportFile(file)

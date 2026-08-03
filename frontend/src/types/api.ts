@@ -5,8 +5,17 @@ export interface ProjectSummary {
   id: string
   name: string
   description: string
+  /** 所属文件夹 id（未分类时为 null） */
+  folderId?: string | null
   createdAt: string
   updatedAt: string
+}
+
+/** 文件夹 */
+export interface FolderSummary {
+  id: string
+  name: string
+  createdAt: string
 }
 
 /** 项目详情（含本体 JSON 数据） */

@@ -61,7 +61,7 @@ export default function DocsDialog() {
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3.5">
           <h3 className="flex items-center gap-2 text-base font-semibold text-slate-800">
             <BookOpen size={18} className="text-primary-600" />
-            CostOntology Editor 使用文档
+            本体可视化编辑器 使用文档
           </h3>
           <div className="flex items-center gap-1">
             <button

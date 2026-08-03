@@ -1,4 +1,4 @@
-import type { ImportResult, ProjectDetail, ProjectSummary } from '../types/api'
+import type { FolderSummary, ImportResult, ProjectDetail, ProjectSummary } from '../types/api'
 
 /**
  * 后端 API 客户端。
@@ -55,14 +55,22 @@ export async function isBackendAvailable(): Promise<boolean> {
 export const apiClient = {
   // ---- 项目 CRUD ----
   listProjects: () => request<ProjectSummary[]>('/projects'),
-  createProject: (data: { name: string; description?: string; ontologyIri?: string }) =>
+  createProject: (data: { name: string; description?: string; ontologyIri?: string; folderId?: string | null }) =>
     request<ProjectSummary>('/projects', { method: 'POST', body: JSON.stringify(data) }),
   getProject: (id: string) => request<ProjectDetail>(`/projects/${id}`),
   updateProject: (
     id: string,
-    data: { name?: string; description?: string; ontology?: Record<string, unknown> },
+    data: { name?: string; description?: string; folderId?: string | null; ontology?: Record<string, unknown> },
   ) => request<ProjectSummary>(`/projects/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteProject: (id: string) => request<void>(`/projects/${id}`, { method: 'DELETE' }),
+
+  // ---- 文件夹 CRUD ----
+  listFolders: () => request<FolderSummary[]>('/folders'),
+  createFolder: (data: { name: string }) =>
+    request<FolderSummary>('/folders', { method: 'POST', body: JSON.stringify(data) }),
+  renameFolder: (id: string, data: { name: string }) =>
+    request<FolderSummary>(`/folders/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteFolder: (id: string) => request<void>(`/folders/${id}`, { method: 'DELETE' }),
 
   // ---- 本体数据 ----
   saveOntology: (projectId: string, ontology: Record<string, unknown>) =>

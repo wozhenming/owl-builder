@@ -24,6 +24,7 @@ def _to_out(project: Project) -> dict:
         "id": project.id,
         "name": project.name,
         "description": project.description,
+        "folderId": project.folder_id,
         "createdAt": project.created_at,
         "updatedAt": project.updated_at,
     }
@@ -43,6 +44,10 @@ def create_project(body: ProjectCreate, db: Session = Depends(get_db)):
         ontology_iri=body.ontology_iri,
         version=body.version,
     )
+    if body.folder_id:
+        project.folder_id = body.folder_id
+        db.commit()
+        db.refresh(project)
     return _to_out(project)
 
 

@@ -167,7 +167,11 @@ export const apiClient = {
       body: JSON.stringify(data),
     }),
   aiChat: (projectId: string, messages: Array<{ role: string; content: string }>, sessionId: string = '') =>
-    request<{ reply?: string; error?: string; operations: Array<{ tool: string; result: string }> }>('/ai/chat', {
+    request<{
+      reply?: string
+      error?: string
+      operations: Array<{ tool: string; result: string; args?: Record<string, unknown> }>
+    }>('/ai/chat', {
       method: 'POST',
       body: JSON.stringify({ projectId, sessionId, messages }),
     }),

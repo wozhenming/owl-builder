@@ -13,6 +13,7 @@ from .api import folder as folder_api
 from .api import project as project_api
 from .api import template as template_api
 from .database import Base, engine
+from .mcp_server import mcp as mcp_server
 
 
 def migrate() -> None:
@@ -29,12 +30,18 @@ def migrate() -> None:
         conn.commit()
 
 
+# MCP（Model Context Protocol）服务的 ASGI 应用（挂载于 /mcp）
+mcp_app = mcp_server.http_app(path="/")
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     # 启动时创建数据表并执行迁移
     Base.metadata.create_all(bind=engine)
     migrate()
-    yield
+    # MCP 会话管理器生命周期
+    async with mcp_app.lifespan(_):
+        yield
 
 
 app = FastAPI(
@@ -69,3 +76,6 @@ app.include_router(folder_api.router)
 app.include_router(auth_api.router)
 app.include_router(template_api.router)
 app.include_router(admin_api.router)
+
+# MCP（Model Context Protocol）服务挂载：http://localhost:8000/mcp
+app.mount("/mcp", mcp_app)

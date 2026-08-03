@@ -8,10 +8,12 @@ import {
   Code2,
   FileDown,
   FileUp,
+  GitFork,
   Loader2,
   Link2,
   Redo2,
   Save,
+  Type,
   Undo2,
   Wand2,
 } from 'lucide-react'
@@ -159,6 +161,24 @@ export default function Toolbar({
       <Tooltip content={HELP.addClass}>
       <Button variant="secondary" size="sm" icon={<Box size={14} />} onClick={() => openDialog('addClass')}>
         添加类
+      </Button>
+      </Tooltip>
+      <Tooltip content={HELP.addSubclass}>
+      <Button
+        variant="secondary"
+        size="sm"
+        icon={<GitFork size={14} />}
+        onClick={() => {
+          useUiStore.getState().setPendingKind('subclass')
+          openDialog('addProperty')
+        }}
+      >
+        子类关系
+      </Button>
+      </Tooltip>
+      <Tooltip content={HELP.addDatatype}>
+      <Button variant="secondary" size="sm" icon={<Type size={14} />} onClick={() => openDialog('addDatatype')}>
+        添加数据类型
       </Button>
       </Tooltip>
       <Tooltip content={HELP.addProperty}>

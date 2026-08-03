@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { BookOpen, X } from 'lucide-react'
 import { useUiStore } from '../../store/uiStore'
 import docsContent from '../../../docs/usage.md?raw'
@@ -78,6 +79,7 @@ export default function DocsDialog() {
           <article className="flex-1 overflow-y-auto bg-white px-8 py-6">
             <div className="prose-sm prose-slate max-w-none">
               <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
                 components={{
                   h2: ({ children }) => (
                     <h2

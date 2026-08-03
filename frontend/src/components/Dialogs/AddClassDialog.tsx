@@ -1,22 +1,26 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Boxes } from 'lucide-react'
 import Button from '../common/Button'
 import Input, { Textarea } from '../common/Input'
 import Modal from '../common/Modal'
+import Select from '../common/Select'
 import { safeLocalName, useOntologyStore } from '../../store/ontologyStore'
 import { useUiStore } from '../../store/uiStore'
-import { buildIri, hasDuplicateName, isValidEntityName } from '../../utils/helpers'
+import { buildIri, hasDuplicateName, isValidEntityName, nodeDisplayName } from '../../utils/helpers'
 import { validateClassForm } from '../../utils/validators'
 import { HELP } from '../../utils/helpTexts'
 
 /** 添加类表单（对话框与侧边面板共用） */
 export function AddClassForm({ onDone }: { onDone?: () => void }) {
-  const { ontology, addClass } = useOntologyStore()
+  const { ontology, layout, addClass, addEdge, setNodePosition } = useOntologyStore()
   const showToast = useUiStore((s) => s.showToast)
   const [name, setName] = useState('')
   const [label, setLabel] = useState('')
   const [comment, setComment] = useState('')
+  const [parentId, setParentId] = useState('')
   const [error, setError] = useState<string | null>(null)
+
+  const classes = useMemo(() => ontology.nodes.filter((n) => n.kind === 'class'), [ontology.nodes])
 
   const submit = () => {
     const trimmed = name.trim()
@@ -43,10 +47,19 @@ export function AddClassForm({ onDone }: { onDone?: () => void }) {
       setError('创建失败，请重试')
       return
     }
-    showToast(`已创建类「${label.trim() || trimmed}」`, 'success')
+    // 选择了父类：自动建立子类关系，并把新类放到父类下方（获得正确的层级颜色）
+    if (parentId) {
+      addEdge({ kind: 'subclass', source: id, target: parentId })
+      const parentPos = layout[parentId]
+      if (parentPos) {
+        setNodePosition(id, { x: parentPos.x, y: parentPos.y + 200 })
+      }
+    }
+    showToast(`已创建类「${label.trim() || trimmed}」${parentId ? `（${nodeDisplayName(ontology, parentId)} 的子类）` : ''}`, 'success')
     setName('')
     setLabel('')
     setComment('')
+    setParentId('')
     setError(null)
     onDone?.()
   }
@@ -68,6 +81,13 @@ export function AddClassForm({ onDone }: { onDone?: () => void }) {
         value={label}
         onChange={(e) => setLabel(e.target.value)}
         placeholder="如：分项工程"
+      />
+      <Select
+        label="父类（可选）"
+        labelTip={HELP.parentClass}
+        value={parentId}
+        onChange={(e) => setParentId(e.target.value)}
+        options={[{ value: '', label: '（不设置，作为根类）' }, ...classes.map((c) => ({ value: c.id, label: nodeDisplayName(ontology, c.id) }))]}
       />
       <Textarea
         label="注释（rdfs:comment）"

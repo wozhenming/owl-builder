@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import type { EdgeKind } from '../types/ontology'
 
 /** 右侧面板的标签页 */
 export type SidePanelTab = 'detail' | 'add' | 'code'
@@ -16,6 +17,8 @@ interface UiState {
   addTab: AddViewTab
   /** 画布连线拖放后待创建的关系（打开属性对话框时预填） */
   pendingConnection: { source: string; target: string } | null
+  /** 打开属性对话框时预置的关系类型（如工具栏「子类关系」按钮） */
+  pendingKind: EdgeKind | null
   /** 自动排版请求计数（GraphView 监听并执行；每次点击 +1） */
   layoutRequestId: number
   /** 使用文档对话框 */
@@ -44,6 +47,7 @@ interface UiState {
   openDialog: (name: keyof UiState['dialogs']) => void
   closeDialog: (name: keyof UiState['dialogs']) => void
   setPendingConnection: (conn: { source: string; target: string } | null) => void
+  setPendingKind: (kind: EdgeKind | null) => void
   requestLayout: () => void
   openDocs: () => void
   closeDocs: () => void
@@ -59,6 +63,7 @@ export const useUiStore = create<UiState>((set) => ({
   panelTab: 'detail',
   addTab: 'class',
   pendingConnection: null,
+  pendingKind: null,
   layoutRequestId: 0,
   docsOpen: false,
   dialogs: {
@@ -87,6 +92,7 @@ export const useUiStore = create<UiState>((set) => ({
   openDialog: (name) => set((s) => ({ dialogs: { ...s.dialogs, [name]: true } })),
   closeDialog: (name) => set((s) => ({ dialogs: { ...s.dialogs, [name]: false } })),
   setPendingConnection: (conn) => set({ pendingConnection: conn }),
+  setPendingKind: (kind) => set({ pendingKind: kind }),
   requestLayout: () => set((s) => ({ layoutRequestId: s.layoutRequestId + 1 })),
   openDocs: () => set({ docsOpen: true }),
   closeDocs: () => set({ docsOpen: false }),

@@ -1,36 +1,115 @@
-import type { ReactNode } from 'react'
+import { useCallback, useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 
 interface TooltipProps {
   /** 气泡内容（支持换行） */
   content: ReactNode
   children: ReactNode
-  /** 气泡位置（默认上方） */
+  /** 气泡优先位置（越界时自动翻转） */
   side?: 'top' | 'bottom' | 'left' | 'right'
   className?: string
 }
 
-const POSITION: Record<NonNullable<TooltipProps['side']>, string> = {
-  top: 'bottom-full left-1/2 -translate-x-1/2 mb-2',
-  bottom: 'top-full left-1/2 -translate-x-1/2 mt-2',
-  left: 'right-full top-1/2 -translate-y-1/2 mr-2',
-  right: 'left-full top-1/2 -translate-y-1/2 ml-2',
-}
+const GAP = 8
+const EST_WIDTH = 280
+const EST_HEIGHT = 100
 
 /**
- * 鼠标悬浮提示气泡（纯 CSS，hover/focus 即显，无 JS 状态）。
- * 用于解释名词与操作，避免界面上的说明文字过多。
+ * 鼠标悬浮提示气泡。
+ * 通过 createPortal 渲染到 body 顶层（fixed 定位），
+ * 避免被滚动容器裁剪或低层级遮挡；越界时自动翻转方向。
  */
 export default function Tooltip({ content, children, side = 'top', className = '' }: TooltipProps) {
+  const triggerRef = useRef<HTMLSpanElement>(null)
+  const [pos, setPos] = useState<{ x: number; y: number; finalSide: 'top' | 'bottom' | 'left' | 'right' } | null>(null)
+
+  const show = useCallback(() => {
+    const el = triggerRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    let x = 0
+    let y = 0
+    let finalSide = side
+
+    // 视口边界翻转（top 不够 -> bottom；left 不够 -> right 等）
+    switch (side) {
+      case 'top':
+        if (rect.top < GAP + EST_HEIGHT) {
+          finalSide = 'bottom'
+          y = rect.bottom + GAP
+        } else {
+          y = rect.top - GAP
+        }
+        x = rect.left + rect.width / 2
+        break
+      case 'bottom':
+        if (rect.bottom + GAP + EST_HEIGHT > window.innerHeight) {
+          finalSide = 'top'
+          y = rect.top - GAP
+        } else {
+          y = rect.bottom + GAP
+        }
+        x = rect.left + rect.width / 2
+        break
+      case 'left':
+        if (rect.left < GAP + EST_WIDTH) {
+          finalSide = 'right'
+          x = rect.right + GAP
+        } else {
+          x = rect.left - GAP
+        }
+        y = rect.top + rect.height / 2
+        break
+      case 'right':
+        if (rect.right + GAP + EST_WIDTH > window.innerWidth) {
+          finalSide = 'left'
+          x = rect.left - GAP
+        } else {
+          x = rect.right + GAP
+        }
+        y = rect.top + rect.height / 2
+        break
+    }
+    // 水平夹取，避免横向溢出视口
+    x = Math.max(140, Math.min(x, window.innerWidth - 140))
+    setPos({ x, y, finalSide })
+  }, [side])
+
+  const hide = useCallback(() => setPos(null), [])
+
+  const transform =
+    pos?.finalSide === 'top'
+      ? 'translate(-50%, -100%)'
+      : pos?.finalSide === 'bottom'
+        ? 'translate(-50%, 0)'
+        : pos?.finalSide === 'left'
+          ? 'translate(-100%, -50%)'
+          : 'translate(0, -50%)'
+
   return (
-    <span className={`group relative inline-flex ${className}`}>
-      {children}
+    <>
       <span
-        role="tooltip"
-        className={`pointer-events-none absolute z-50 hidden max-w-[240px] whitespace-pre-line rounded-lg bg-slate-800/95 px-2.5 py-1.5 text-xs leading-relaxed text-white opacity-0 shadow-lg transition-opacity duration-150 group-hover:block group-hover:opacity-100 group-focus-within:block group-focus-within:opacity-100 ${POSITION[side]}`}
+        ref={triggerRef}
+        className={`inline-flex ${className}`}
+        onMouseEnter={show}
+        onMouseLeave={hide}
+        onFocus={show}
+        onBlur={hide}
       >
-        {content}
+        {children}
       </span>
-    </span>
+      {pos &&
+        createPortal(
+          <div
+            role="tooltip"
+            className="pointer-events-none fixed z-[9999] w-max max-w-[300px] whitespace-pre-line rounded-lg bg-slate-800/95 px-3 py-2 text-xs leading-relaxed text-white shadow-xl"
+            style={{ left: pos.x, top: pos.y, transform }}
+          >
+            {content}
+          </div>,
+          document.body,
+        )}
+    </>
   )
 }
 

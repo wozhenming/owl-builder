@@ -6,7 +6,7 @@ import Modal from '../common/Modal'
 import Select from '../common/Select'
 import { safeLocalName, useOntologyStore } from '../../store/ontologyStore'
 import { useUiStore } from '../../store/uiStore'
-import type { EdgeKind, PropertyKind } from '../../types/ontology'
+import type { EdgeKind } from '../../types/ontology'
 import { XSD_DATATYPES, buildIri, findNode, hasDuplicateName, isValidEntityName, nodeDisplayName } from '../../utils/helpers'
 import { validatePropertyForm } from '../../utils/validators'
 import { HELP } from '../../utils/helpTexts'
@@ -22,9 +22,9 @@ interface AddPropertyFormProps {
 /** 添加属性表单（对话框与侧边面板共用） */
 export function AddPropertyForm({ onDone }: AddPropertyFormProps) {
   const { ontology, addEdge, addDatatype } = useOntologyStore()
-  const { pendingConnection, setPendingConnection, showToast } = useUiStore()
+  const { pendingConnection, pendingKind, setPendingConnection, setPendingKind, showToast } = useUiStore()
 
-  const [kind, setKind] = useState<PropertyKind>('objectProperty')
+  const [kind, setKind] = useState<EdgeKind>('objectProperty')
   const [name, setName] = useState('')
   const [label, setLabel] = useState('')
   const [comment, setComment] = useState('')
@@ -48,6 +48,14 @@ export function AddPropertyForm({ onDone }: AddPropertyFormProps) {
     return [...existing, ...missing]
   }, [ontology.nodes])
 
+  // 工具栏「子类关系」等按钮预置关系类型
+  useEffect(() => {
+    if (pendingKind) {
+      setKind(pendingKind)
+      setPendingKind(null)
+    }
+  }, [pendingKind])
+
   // 连线拖放后预填 domain/range
   useEffect(() => {
     if (pendingConnection) {
@@ -66,6 +74,8 @@ export function AddPropertyForm({ onDone }: AddPropertyFormProps) {
   useEffect(() => {
     if (!domain && !pendingConnection && classes.length > 0) setDomain(classes[0].id)
   }, [classes, domain, pendingConnection])
+
+  const isSubclass = kind === 'subclass'
 
   const rangeOptions = useMemo(() => {
     if (kind === 'dataProperty') {
@@ -87,6 +97,27 @@ export function AddPropertyForm({ onDone }: AddPropertyFormProps) {
 
   const submit = () => {
     const trimmed = name.trim()
+    if (isSubclass) {
+      // 子类关系：只需起点（子类）与终点（父类）
+      if (!domain || !range) {
+        setError('请选择子类（起点）与父类（终点）')
+        return
+      }
+      if (domain === range) {
+        setError('子类与父类不能是同一个类')
+        return
+      }
+      const id = addEdge({ kind: 'subclass', source: domain, target: range })
+      if (!id) {
+        setError('创建失败：同一起点与终点间已存在子类关系')
+        return
+      }
+      showToast(`已创建子类关系「${nodeDisplayName(ontology, domain)} → ${nodeDisplayName(ontology, range)}」`, 'success')
+      setPendingConnection(null)
+      setError(null)
+      onDone?.()
+      return
+    }
     const v = validatePropertyForm({
       name: trimmed,
       label,
@@ -115,7 +146,7 @@ export function AddPropertyForm({ onDone }: AddPropertyFormProps) {
       }
     }
     const id = addEdge({
-      kind: kind as EdgeKind,
+      kind,
       source: domain,
       target: targetId,
       name: trimmed,
@@ -141,75 +172,105 @@ export function AddPropertyForm({ onDone }: AddPropertyFormProps) {
   return (
     <div className="space-y-4">
       <Select
-        label="属性类型"
-        labelTip={HELP.propKind}
+        label="关系类型"
+        labelTip={HELP.relationKind}
         value={kind}
-        onChange={(e) => setKind(e.target.value as PropertyKind)}
+        onChange={(e) => setKind(e.target.value as EdgeKind)}
         options={[
+          { value: 'subclass', label: '子类关系（rdfs:subClassOf）' },
           { value: 'objectProperty', label: '对象属性（类 → 类）' },
           { value: 'dataProperty', label: '数据属性（类 → 数据类型）' },
           { value: 'annotationProperty', label: '注解属性' },
         ]}
       />
-      <Input
-        label="属性名（IRI 本地名）"
-        labelTip={HELP.propName}
-        required
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        placeholder="如：包含分项、单位造价"
-        hint={`将生成 IRI：${buildIri(ontology.ontologyIri, safeLocalName(name.trim() || '属性'))}`}
-      />
-      <Input
-        label="中文显示名"
-        labelTip={HELP.displayName}
-        value={label}
-        onChange={(e) => setLabel(e.target.value)}
-        placeholder="如：单位造价"
-      />
-      <div className="grid grid-cols-1 gap-4">
-        <Select
-          label="定义域 Domain（起点）"
-          labelTip={HELP.domain}
-          required
-          value={domain}
-          onChange={(e) => setDomain(e.target.value)}
-          options={classes.map((c) => ({ value: c.id, label: nodeDisplayName(ontology, c.id) }))}
-        />
-        <Select
-          label="值域 Range（终点）"
-          labelTip={HELP.range}
-          required
-          value={range}
-          onChange={(e) => setRange(e.target.value)}
-          options={rangeOptions}
-        />
-      </div>
-      <label className="flex items-center gap-2 text-sm text-slate-700">
-        <Tooltip content={HELP.functional} side="right">
-          <span className="flex cursor-help items-center gap-2">
-            <input
-              type="checkbox"
-              checked={functional}
-              onChange={(e) => setFunctional(e.target.checked)}
-              className="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+      {isSubclass ? (
+        <>
+          <div className="rounded-md bg-slate-50 p-2.5 text-xs leading-relaxed text-slate-500">
+            子类关系：起点为<b>子类</b>（继承方），终点为<b>父类</b>。
+            子类将自动继承父类的属性。连线时请<b>从子类拖到父类</b>。
+          </div>
+          <Select
+            label="子类（起点）"
+            required
+            value={domain}
+            onChange={(e) => setDomain(e.target.value)}
+            options={classes.map((c) => ({ value: c.id, label: nodeDisplayName(ontology, c.id) }))}
+          />
+          <Select
+            label="父类（终点）"
+            required
+            value={range}
+            onChange={(e) => setRange(e.target.value)}
+            options={rangeOptions}
+          />
+        </>
+      ) : (
+        <>
+          <Input
+            label="属性名（IRI 本地名）"
+            labelTip={HELP.propName}
+            required
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="如：包含分项、单位造价"
+            hint={`将生成 IRI：${buildIri(ontology.ontologyIri, safeLocalName(name.trim() || '属性'))}`}
+          />
+          <Input
+            label="中文显示名"
+            labelTip={HELP.displayName}
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            placeholder="如：单位造价"
+          />
+          <div className="grid grid-cols-1 gap-4">
+            <Select
+              label="定义域 Domain（起点）"
+              labelTip={HELP.domain}
+              required
+              value={domain}
+              onChange={(e) => setDomain(e.target.value)}
+              options={classes.map((c) => ({ value: c.id, label: nodeDisplayName(ontology, c.id) }))}
             />
-            函数型属性（FunctionalProperty）
-          </span>
-        </Tooltip>
-      </label>
-      <Textarea
-        label="注释（rdfs:comment）"
-        labelTip={HELP.comment}
-        value={comment}
-        onChange={(e) => setComment(e.target.value)}
-        placeholder="对属性的说明"
-        rows={2}
-      />
+            <Select
+              label="值域 Range（终点）"
+              labelTip={HELP.range}
+              required
+              value={range}
+              onChange={(e) => setRange(e.target.value)}
+              options={rangeOptions}
+            />
+          </div>
+          <label className="flex items-center gap-2 text-sm text-slate-700">
+            <Tooltip content={HELP.functional} side="right">
+              <span className="flex cursor-help items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={functional}
+                  onChange={(e) => setFunctional(e.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+                />
+                函数型属性（FunctionalProperty）
+              </span>
+            </Tooltip>
+          </label>
+          <Textarea
+            label="注释（rdfs:comment）"
+            labelTip={HELP.comment}
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            placeholder="对属性的说明"
+            rows={2}
+          />
+        </>
+      )}
       {error && <p className="text-sm text-red-600">{error}</p>}
       <div className="flex justify-end">
-        <Button variant="primary" icon={<Link2 size={16} />} onClick={submit}>
-          创建属性
+        <Button
+          variant="primary"
+          icon={<Link2 size={16} />}
+          onClick={submit}
+        >
+          {isSubclass ? '创建子类关系' : '创建属性'}
         </Button>
       </div>
     </div>
